@@ -2,6 +2,7 @@
 RGB_MATRIX_ENABLE = yes
 CONSOLE_ENABLE = no
 VIA_ENABLE = yes
+RGB_MATRIX_ENABLE = yes
 
 # Otimizações
 LTO_ENABLE = yes
