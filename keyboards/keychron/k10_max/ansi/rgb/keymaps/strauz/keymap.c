@@ -22,7 +22,7 @@ typedef struct {
 static autofire_key_t autofire_keys[AUTOFIRE_KEY_LIMIT];
 static uint8_t autofire_count = 0;
 static bool rgb_matrix_disabled = false;
-static bool autofire_profile_mode = false;
+static bool autofire_profile_mode = true;
 
 
 // ===== CUSTOM KEYCODES =====
