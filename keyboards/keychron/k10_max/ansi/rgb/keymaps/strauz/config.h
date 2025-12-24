@@ -1,0 +1,8 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// ===== EEPROM CONFIGURATION =====
+#define EECONFIG_USER_DATA_SIZE 131
+#define EEPROM_USER_DATA_VERSION 1
+
+#endif // CONFIG_H

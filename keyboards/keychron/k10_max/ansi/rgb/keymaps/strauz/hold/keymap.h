@@ -4,8 +4,6 @@
 #include QMK_KEYBOARD_H
 #include "../keymap.h"
 
-// ===== PUBLIC INTERFACE - QMK HOOKS =====
-
 bool process_record_hold(uint16_t keycode, keyrecord_t *record);
 void matrix_scan_hold(void);
 bool rgb_matrix_indicators_hold(void);
