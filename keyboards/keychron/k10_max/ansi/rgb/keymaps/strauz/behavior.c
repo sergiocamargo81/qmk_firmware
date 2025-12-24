@@ -1,101 +1,58 @@
 #include "behavior.h"
-#include "keymap.h"
-#include "persist.h"
+#include "kind.h"
 
-static const uint16_t behavior_keycodes[BEHAVIOR_KEYS_COUNT] = {
-    KC_A, KC_B, KC_C, KC_D, KC_E, KC_F, KC_G, KC_H,
-    KC_I, KC_J, KC_K, KC_L, KC_M, KC_N, KC_O, KC_P,
-    KC_Q, KC_R, KC_S, KC_T, KC_U, KC_V, KC_W, KC_X,
-    KC_Y, KC_Z, KC_1, KC_2, KC_3, KC_4, KC_5, KC_6,
-    KC_7, KC_8, KC_9, KC_0, KC_SPC, KC_MINS, KC_EQL, KC_LBRC,
-    KC_RBRC, KC_BSLS, KC_SCLN, KC_QUOT, KC_GRV, KC_COMM, KC_DOT, KC_SLSH,
-};
+// ===== API: Baseada em posição (keypos_t) =====
 
-profile_t current_profile = {
-    .data = {.id = BEHAVIOR_DEFAULT_PROFILE, .behaviors = {0}},
-    .changed = false
-};
-
-uint8_t behavior_keycode_to_index(uint16_t keycode) {
-    int left = 0, right = BEHAVIOR_KEYS_COUNT - 1;
-    while (left <= right) {
-        int mid = left + (right - left) / 2;
-        uint16_t mid_keycode = behavior_keycodes[mid];
-        if (mid_keycode == keycode) return mid;
-        else if (mid_keycode < keycode) left = mid + 1;
-        else right = mid - 1;
+// Resolve o handler associado a uma posição (row, col)
+// Retorna true se encontrou behavior associado e preenche handler e supported_keymod
+// Retorna false se não encontrou behavior associado
+bool behavior_resolve_handler_by_position(uint8_t row, uint8_t col, key_function_t* handler, keymod_t* supported_keymod) {
+    if (handler == NULL || supported_keymod == NULL) {
+        return false;
     }
-    return 0xFF;
-}
-
-key_behavior_t behavior_get(uint16_t keycode) {
-    uint8_t index = behavior_keycode_to_index(keycode);
-    if (index == 0xFF) return KEY_BEHAVIOR_DISABLED;
-    return current_profile.data.behaviors[index];
-}
-
-bool behavior_set(uint16_t keycode, key_behavior_t behavior) {
-    uint8_t index = behavior_keycode_to_index(keycode);
-    if (index == 0xFF) return false;
-    key_behavior_t current = current_profile.data.behaviors[index];
-    if (current != behavior) {
-        current_profile.data.behaviors[index] = behavior;
-        current_profile.changed = true;
+    
+    base_t* entry = kind_get_grid_entry(row, col);
+    if (entry == NULL) {
+        return false;
     }
-    return true;
-}
-
-bool behavior_save_and_load_profile(uint8_t profile_id) {
-    if (profile_id >= BEHAVIOR_PROFILES_COUNT) return false;
-    if (current_profile.changed) {
-        persist_write_profile(&current_profile.data);
-        persist_write_current_profile_id(current_profile.data.id);
-    }
-    bool success = persist_read_profile(profile_id, &current_profile.data);
-    if (success) {
-        current_profile.data.id = profile_id;
-        current_profile.changed = false;
-    }
-    return success;
-}
-
-bool behavior_save_to_eeprom(void) {
-    if (!current_profile.changed) return true;
-    bool success = persist_write_profile(&current_profile.data);
-    if (success) {
-        success = persist_write_current_profile_id(current_profile.data.id);
-        current_profile.changed = false;
-    }
-    return success;
-}
-
-void behavior_init_defaults(void) {
-    memset(current_profile.data.behaviors, 0, sizeof(current_profile.data.behaviors));
-    current_profile.data.id = BEHAVIOR_DEFAULT_PROFILE;
-    current_profile.changed = true;
-}
-
-bool behavior_init(void) {
-    persist_init_behaviors();
-    uint8_t profile_id = persist_read_current_profile_id();
-    return persist_read_profile(profile_id, &current_profile.data);
-}
-
-uint8_t behavior_get_current_profile_id(void) { return current_profile.data.id; }
-bool behavior_has_changed(void) { return current_profile.changed; }
-bool behavior_is_active(uint16_t keycode) { return behavior_get(keycode) != KEY_BEHAVIOR_DISABLED; }
-void behavior_reset_all(void) {
-    memset(current_profile.data.behaviors, 0, sizeof(current_profile.data.behaviors));
-    current_profile.changed = true;
-}
-
-bool process_record_behavior(uint16_t keycode, keyrecord_t *record) {
-    if (record->event.pressed) {
-        if (keycode >= PROFILE_0 && keycode <= PROFILE_9) {
-            uint8_t new_profile_id = keycode - PROFILE_0;
-            behavior_save_and_load_profile(new_profile_id);
-            return false;
+    
+    if (entry->kind == KIND_CUSTOM) {
+        custom_t* custom = (custom_t*)entry;
+        if (custom->function != NULL) {
+            *handler = custom->function;
+            *supported_keymod = custom->supported_keymod;
+            return true;
+        }
+    } else if (entry->kind == KIND_POSITION) {
+        position_t* position = (position_t*)entry;
+        if (position->function != NULL) {
+            *handler = position->function;
+            *supported_keymod = position->supported_keymod;
+            return true;
         }
     }
-    return true;
+    
+    return false;
 }
+
+// ===== Funções para submódulos =====
+
+// Obtém custom_t por custom_index (0-47)
+custom_t* behavior_get_custom_by_index(uint8_t custom_index) {
+    return kind_get_custom_by_index(custom_index);
+}
+
+
+// Verifica se uma posição pode ter behavior custom
+bool behavior_position_is_custom(uint8_t row, uint8_t col) {
+    custom_t* custom = kind_get_custom(row, col);
+    return custom != NULL;
+}
+
+// ===== Sistema de Registro =====
+
+// Registra uma função para uma posição específica (row, col)
+// Permite busca O(1) na matriz de funções
+bool behavior_register_position_function(uint8_t row, uint8_t col, key_function_t function) {
+    return kind_register_function(row, col, function);
+    }

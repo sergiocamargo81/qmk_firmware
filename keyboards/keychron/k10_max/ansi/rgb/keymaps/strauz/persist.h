@@ -1,18 +1,40 @@
-#ifndef BEHAVIOR_PERSIST_H
-#define BEHAVIOR_PERSIST_H
+#ifndef PERSIST_H
+#define PERSIST_H
 
 #include QMK_KEYBOARD_H
-#include <eeprom.h>
-#include "common.h"
 
-#define EEPROM_PROFILE_SIZE 12
-#define EEPROM_TOTAL_BEHAVIOR_SIZE (EEPROM_PROFILE_SIZE * BEHAVIOR_PROFILES_COUNT)
-#define EEPROM_DATA_VERSION 1
+#include "settings.h"
+#include "profiles.h"
 
-bool persist_read_profile(uint8_t profile_id, profile_data_t *profile);
-bool persist_write_profile(const profile_data_t *profile);
-uint8_t persist_read_current_profile_id(void);
-bool persist_write_current_profile_id(uint8_t profile_id);
-void persist_init_behaviors(void);
+// ===== Packing sizes =====
+// 2 bits por tecla => bytes por perfil:
+#define SETTINGS_PROFILE_PACKED_SIZE ((PROFILES_KEYS_COUNT * 2 + 7) / 8)
 
-#endif // BEHAVIOR_PERSIST_H
+// Payload (sem magic, sem CRC):
+// [version(1)] [profile_index(1)] [profiles_packed(PROFILES_COUNT * PROFILE_PACKED_SIZE)]
+#define PERSIST_SETTINGS_SIZE (1 + 1 + (PROFILES_COUNT * SETTINGS_PROFILE_PACKED_SIZE))
+
+// Datablock layout (128 bytes):
+// [magic(2)] + payload(122) = 124 bytes
+// [crc32(4)] => 128 bytes
+#define PERSIST_MAGIC_0 0x53 // 'S'
+#define PERSIST_MAGIC_1 0x5A // 'Z'
+
+#define PERSIST_NOCRC_SIZE (2 + PERSIST_SETTINGS_SIZE) // 124
+#define PERSIST_CRC_SIZE 4
+#define PERSIST_BLOB_SIZE (PERSIST_NOCRC_SIZE + PERSIST_CRC_SIZE) // 128
+#define PERSIST_CRC_OFFSET PERSIST_NOCRC_SIZE
+
+#if !defined(EECONFIG_USER_DATA_SIZE) || (EECONFIG_USER_DATA_SIZE <= 0)
+#    error "EECONFIG_USER_DATA_SIZE must be defined and > 0"
+#endif
+
+#if (EECONFIG_USER_DATA_SIZE < PERSIST_BLOB_SIZE)
+#    error "EECONFIG_USER_DATA_SIZE is smaller than persist blob size (128)"
+#endif
+
+bool persist_read_settings(settings_t *settings);
+bool persist_write_settings(const settings_t *settings);
+
+#endif // PERSIST_H
+

@@ -1,82 +1,157 @@
 #include "persist.h"
 
-#define EEPROM_BEHAVIOR_START       0x00
-#define EEPROM_CURRENT_PROFILE_ID   (EEPROM_BEHAVIOR_START + EEPROM_TOTAL_BEHAVIOR_SIZE)
-#define EEPROM_DATA_VERSION_OFFSET  (EEPROM_CURRENT_PROFILE_ID + 1)
+#include "eeconfig.h"
+#include "customs.h"  // Para customs_t e KEY_CUSTOM_MASK
 
-static void _pack_behaviors(const profile_data_t *profile, uint8_t *packed) {
-    memset(packed, 0, EEPROM_PROFILE_SIZE);
-    for (uint8_t i = 0; i < BEHAVIOR_KEYS_COUNT; i++) {
-        uint8_t byte_index = i / 4;
-        uint8_t bit_offset = (i % 4) * 2;
-        uint8_t behavior_value = (uint8_t)profile->behaviors[i] & 0b11;
-        packed[byte_index] |= (behavior_value << bit_offset);
+#include <string.h>
+
+static uint32_t _crc32_update(uint32_t crc, uint8_t data) {
+    crc ^= data;
+    for (uint8_t i = 0; i < 8; i++) {
+        if (crc & 1) {
+            crc = (crc >> 1) ^ 0xEDB88320u;
+        } else {
+            crc = (crc >> 1);
+        }
     }
+    return crc;
 }
 
-static void _unpack_behaviors(const uint8_t *packed, profile_data_t *profile) {
-    for (uint8_t i = 0; i < BEHAVIOR_KEYS_COUNT; i++) {
-        uint8_t byte_index = i / 4;
-        uint8_t bit_offset = (i % 4) * 2;
-        uint8_t behavior_value = (packed[byte_index] >> bit_offset) & 0b11;
-        profile->behaviors[i] = (key_behavior_t)behavior_value;
+// CRC-32 (Ethernet/ZIP): init=0xFFFFFFFF, poly=0xEDB88320 (refletido), xorout=0xFFFFFFFF
+static uint32_t persist_crc32(const void *data, size_t len) {
+    const uint8_t *p = (const uint8_t *)data;
+    uint32_t crc = 0xFFFFFFFFu;
+
+    for (size_t i = 0; i < len; i++) {
+        crc = _crc32_update(crc, p[i]);
     }
+
+    return crc ^ 0xFFFFFFFFu;
 }
 
-static inline uint16_t _profile_eeprom_offset(uint8_t profile_id) {
-    if (profile_id >= BEHAVIOR_PROFILES_COUNT) return 0xFFFF;
-    return EEPROM_BEHAVIOR_START + (profile_id * EEPROM_PROFILE_SIZE);
+static uint32_t _read_u32_le(const uint8_t *p) {
+    return ((uint32_t)p[0]) |
+           ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) |
+           ((uint32_t)p[3] << 24);
 }
 
-bool persist_read_profile(uint8_t profile_id, profile_data_t *profile) {
-    if (profile_id >= BEHAVIOR_PROFILES_COUNT || !profile) return false;
-    uint16_t offset = _profile_eeprom_offset(profile_id);
-    uint8_t packed[EEPROM_PROFILE_SIZE] = {0};
-    eeprom_read_block((void*)packed, (const void*)(uintptr_t)offset, EEPROM_PROFILE_SIZE);
-    _unpack_behaviors(packed, profile);
-    profile->id = profile_id;
-    return true;
+static void _write_u32_le(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)(v & 0xFF);
+    p[1] = (uint8_t)((v >> 8) & 0xFF);
+    p[2] = (uint8_t)((v >> 16) & 0xFF);
+    p[3] = (uint8_t)((v >> 24) & 0xFF);
 }
 
-bool persist_write_profile(const profile_data_t *profile) {
-    if (!profile || profile->id >= BEHAVIOR_PROFILES_COUNT) return false;
-    uint16_t offset = _profile_eeprom_offset(profile->id);
-    uint8_t packed[EEPROM_PROFILE_SIZE] = {0};
-    _pack_behaviors(profile, packed);
-    eeprom_update_block((const void*)packed, (void*)(uintptr_t)offset, EEPROM_PROFILE_SIZE);
-    return true;
-}
+// Pack: settings_t -> datablock[0..123] (sem CRC)
+static void _settings_pack_nocrc(const settings_t *settings, uint8_t *out) {
+    uint8_t *ptr = out;
 
-uint8_t persist_read_current_profile_id(void) {
-    uint8_t profile_id = BEHAVIOR_DEFAULT_PROFILE;
-    eeprom_read_block((void*)&profile_id, (const void*)(uintptr_t)EEPROM_CURRENT_PROFILE_ID, 1);
-    if (profile_id >= BEHAVIOR_PROFILES_COUNT) return BEHAVIOR_DEFAULT_PROFILE;
-    return profile_id;
-}
+    // Magic
+    *ptr++ = PERSIST_MAGIC_0;
+    *ptr++ = PERSIST_MAGIC_1;
 
-bool persist_write_current_profile_id(uint8_t profile_id) {
-    if (profile_id >= BEHAVIOR_PROFILES_COUNT) return false;
-    eeprom_update_block((const void*)&profile_id, (void*)(uintptr_t)EEPROM_CURRENT_PROFILE_ID, 1);
-    return true;
-}
+    // Version
+    *ptr++ = settings->version;
 
-void persist_init_behaviors(void) {
-    uint8_t stored_version = 0;
-    eeprom_read_block((void*)&stored_version, (const void*)(uintptr_t)EEPROM_DATA_VERSION_OFFSET, 1);
+    // Profile index
+    *ptr++ = settings->profiles.active_index;
 
-    if (stored_version != EEPROM_DATA_VERSION) {
-        uint8_t packed[EEPROM_PROFILE_SIZE] = {0};
-        profile_data_t default_profile = {.id = BEHAVIOR_DEFAULT_PROFILE, .behaviors = {0}};
+    // Compacta perfis
+    for (uint8_t p = 0; p < PROFILES_COUNT; p++) {
+        uint8_t profile_packed[SETTINGS_PROFILE_PACKED_SIZE];
+        memset(profile_packed, 0, sizeof(profile_packed));
 
-        for (uint8_t profile = 0; profile < BEHAVIOR_PROFILES_COUNT; profile++) {
-            default_profile.id = profile;
-            _pack_behaviors(&default_profile, packed);
-            uint16_t offset = _profile_eeprom_offset(profile);
-            eeprom_update_block((const void*)packed, (void*)(uintptr_t)offset, EEPROM_PROFILE_SIZE);
+        for (uint8_t i = 0; i < PROFILES_KEYS_COUNT; i++) {
+            uint8_t byte_index = i / 4;
+            uint8_t bit_offset = (i % 4) * 2;
+            // Grava apenas custom (HOLD, TOGGLE) - mascarando outros tipos
+            uint8_t behavior_value = (uint8_t)settings->profiles.profiles[p].behaviors[i] & KEY_CUSTOM_MASK;
+            profile_packed[byte_index] |= (uint8_t)(behavior_value << bit_offset);
         }
 
-        persist_write_current_profile_id(BEHAVIOR_DEFAULT_PROFILE);
-        uint8_t version = EEPROM_DATA_VERSION;
-        eeprom_update_block((const void*)&version, (void*)(uintptr_t)EEPROM_DATA_VERSION_OFFSET, 1);
+        memcpy(ptr, profile_packed, sizeof(profile_packed));
+        ptr += sizeof(profile_packed);
     }
 }
+
+static void _settings_unpack(const uint8_t *blob, settings_t *settings) {
+    const uint8_t *ptr = blob;
+
+    // Pula magic
+    ptr += 2;
+
+    settings->version = *ptr++;
+    uint8_t profile_index = *ptr++;
+
+    // Inicializa profiles
+    for (uint8_t p = 0; p < PROFILES_COUNT; p++) {
+        settings->profiles.profiles[p].active = (p == profile_index);
+        settings->profiles.profiles[p].index = p;
+        
+        for (uint8_t i = 0; i < PROFILES_KEYS_COUNT; i++) {
+            uint8_t byte_index = i / 4;
+            uint8_t bit_offset = (i % 4) * 2;
+            // Lê apenas custom (HOLD, TOGGLE)
+            uint8_t behavior_value = (ptr[byte_index] >> bit_offset) & KEY_CUSTOM_MASK;
+            settings->profiles.profiles[p].behaviors[i] = (customs_t)behavior_value;
+        }
+        ptr += SETTINGS_PROFILE_PACKED_SIZE;
+    }
+    
+    // Define profile ativo
+    settings->profiles.active_index = profile_index;
+}
+
+bool persist_read_settings(settings_t *settings) {
+    if (!settings) return false;
+
+#if !defined(EECONFIG_USER_DATA_SIZE) || (EECONFIG_USER_DATA_SIZE <= 0)
+    return false;
+#else
+    uint8_t datablock[EECONFIG_USER_DATA_SIZE];
+    memset(datablock, 0, sizeof(datablock));
+
+    // Keychron fork: lê o datablock inteiro
+    eeconfig_read_user_datablock(datablock);
+
+    // Magic
+    if (datablock[0] != PERSIST_MAGIC_0 || datablock[1] != PERSIST_MAGIC_1) return false;
+
+    // Version do payload
+    if (datablock[2] != SETTINGS_VERSION) return false;
+
+    // CRC
+    uint32_t stored_crc = _read_u32_le(&datablock[PERSIST_CRC_OFFSET]);
+    uint32_t calc_crc   = persist_crc32(datablock, PERSIST_NOCRC_SIZE);
+    if (stored_crc != calc_crc) return false;
+
+    _settings_unpack(datablock, settings);
+
+    if (settings->profiles.active_index >= PROFILES_COUNT) return false;
+
+    return true;
+#endif
+}
+
+bool persist_write_settings(const settings_t *settings) {
+    if (!settings) return false;
+
+#if !defined(EECONFIG_USER_DATA_SIZE) || (EECONFIG_USER_DATA_SIZE <= 0)
+    return false;
+#else
+    uint8_t datablock[EECONFIG_USER_DATA_SIZE];
+    memset(datablock, 0, sizeof(datablock));
+
+    _settings_pack_nocrc(settings, datablock);
+
+    uint32_t crc = persist_crc32(datablock, PERSIST_NOCRC_SIZE);
+    _write_u32_le(&datablock[PERSIST_CRC_OFFSET], crc);
+
+    // Keychron fork: grava o datablock inteiro
+    eeconfig_update_user_datablock(datablock);
+
+    return true;
+#endif
+}
+
