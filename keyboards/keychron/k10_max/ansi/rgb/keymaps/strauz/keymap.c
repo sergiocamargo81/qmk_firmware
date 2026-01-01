@@ -14,6 +14,7 @@
 #include "numlock/numlock.h"
 #include "profiles/profiles.h"
 #include "persistence/persistence.h"
+#include "modifiers/modifiers.h"
 #include "settings.h"
 #include "profiles.h"
 #include "customs.h"
@@ -22,106 +23,89 @@
 
 // Obtém o estado dos modificadores no momento do evento
 // Retorna um keymod_t enum conforme os modificadores ativos
-// Otimização: se FN não estiver ativo, não calcula RCTL e RALT
-// Prioridade: RCTL tem prioridade sobre RALT (se ambos estão ativos, retorna KEYMOD_FN_RCTL)
+// Prioridade: RCTL > RALT > RSFT
 static keymod_t get_keymod(keyrecord_t *record) {
+    // Lê source_layer uma única vez no início
+    uint8_t source_layer = read_source_layers_cache(record->event.key);
+    
+    // Cacheia keycode uma única vez (usado em múltiplos lugares)
+    uint16_t keycode = 0;
+    bool keycode_valid = false;
+    if (source_layer < 255) {
+        keycode = keymap_key_to_keycode(source_layer, record->event.key);
+        keycode_valid = true;
+    }
+    
+    // Verifica se FN layer está ativo
+    // Caso mais comum primeiro: se source_layer já é WIN_FN, FN está ativo
+    bool fn_active = (source_layer == WIN_FN);
+    
+    // Se ainda não detectou FN, verifica outras condições (menos comuns)
+    if (!fn_active) {
+        // Cacheia layer_state_is(WIN_FN) apenas se necessário
+        fn_active = layer_state_is(WIN_FN);
+        
+        // Se ainda não detectou, verifica se a tecla atual é MO(WIN_FN)
+        if (!fn_active && keycode_valid && keycode == MO(WIN_FN)) {
+            fn_active = true;
+        }
+        
+        // Última verificação: se MO(WIN_FN) está sendo pressionado diretamente na matriz
+        // MO(WIN_FN) está na posição (5, 12) no keymap
+        // Isso garante que FN seja detectado mesmo se a layer não estiver ativa ainda
+        if (!fn_active && matrix_is_on(5, 12)) {
+            fn_active = true;
+        }
+    }
+    
+    // Se FN não estiver ativo, retorna NONE (early return)
+    if (!fn_active) {
+        return KEYMOD_NONE;
+    }
+
     // Obtém modificadores efetivos no momento do evento
     uint8_t effective_mods = get_mods() | get_weak_mods() | get_oneshot_mods();
 
     // Se o keycode for um modificador e estiver sendo pressionado, adiciona aos mods efetivos
     // (porque get_mods() ainda não foi atualizado com este modificador)
-    uint8_t source_layer = read_source_layers_cache(record->event.key);
-    if (source_layer < 255) {
-    uint16_t keycode = keymap_key_to_keycode(source_layer, record->event.key);
-    if (IS_MODIFIER_KEYCODE(keycode) && record->event.pressed) {
+    if (keycode_valid && IS_MODIFIER_KEYCODE(keycode) && record->event.pressed) {
         effective_mods |= MOD_BIT(keycode);
     }
-    }
 
-    // Verifica se outros modificadores estão ativos (LSHIFT, LCTL, LALT, RSHIFT, LWIN, RWIN)
-    // Se algum estiver ativo, retorna INVALID
-    if (effective_mods & (MOD_BIT(KC_LSFT) | MOD_BIT(KC_LCTL) | MOD_BIT(KC_LALT) | 
-                          MOD_BIT(KC_RSFT) | MOD_BIT(KC_LWIN) | MOD_BIT(KC_RWIN))) {
-        return KEYMOD_INVALID;
-    }
-
-    // Verifica se RCTL ou RALT estão ativos
-    bool rctl_active = (effective_mods & MOD_BIT(KC_RCTL)) != 0;
-    bool ralt_active = (effective_mods & MOD_BIT(KC_RALT)) != 0;
-    
-    // Se RCTL ou RALT estão ativos, verifica se FN também está ativo
-    if (rctl_active || ralt_active) {
-        // Verifica se FN layer está ativo (source layer ou layer state)
-        bool fn_active = (source_layer == WIN_FN) || layer_state_is(WIN_FN);
-        
-        if (fn_active) {
-            // FN está ativo com RCTL ou RALT
-            if (rctl_active) {
+    // Verifica modificadores em ordem de prioridade: RCTL > RALT > RSFT
+    if (effective_mods & MOD_BIT(KC_RCTL)) {
         return KEYMOD_FN_RCTL;
     }
-            if (ralt_active) {
-                return KEYMOD_FN_RALT;
-            }
-        } else {
-            // RCTL ou RALT ativos sem FN = inválido
-            return KEYMOD_INVALID;
-        }
+    
+    if (effective_mods & MOD_BIT(KC_RALT)) {
+        return KEYMOD_FN_RALT;
     }
     
-    // Verifica se FN layer está ativo
-    // Verifica tanto a layer source quanto a layer state (para teclas não mapeadas na layer FN)
-    bool fn_active = (source_layer == WIN_FN) || layer_state_is(WIN_FN);
-    
-    // Se a tecla atual for MO(WIN_FN), considera FN ativo
-    if (source_layer < 255) {
-        uint16_t keycode = keymap_key_to_keycode(source_layer, record->event.key);
-        if (keycode == MO(WIN_FN)) {
-            fn_active = true;
-        }
-    }
-    
-    // Verifica se MO(WIN_FN) está sendo pressionado diretamente na matriz
-    // MO(WIN_FN) está na posição (5, 9) no keymap
-    // Isso garante que FN seja detectado mesmo se a layer não estiver ativa ainda
-    if (!fn_active) {
-        if (matrix_is_on(5, 9)) {
-            fn_active = true;
-        }
-    }
-    
-    // Verifica se a layer FN está ativa (mais confiável que verificar posições individuais)
-    // Isso é necessário porque quando você pressiona MO(WIN_FN) + outra tecla,
-    // a layer pode estar ativa mesmo que source_layer não seja WIN_FN
-    if (!fn_active) {
-        fn_active = layer_state_is(WIN_FN);
-    }
-    
-    // Se FN não estiver ativo, retorna NONE
-    if (!fn_active) {
-        return KEYMOD_NONE;
+    if (effective_mods & MOD_BIT(KC_RSFT)) {
+        return KEYMOD_FN_RSFT;
     }
 
-    // Apenas FN está ativo (sem RCTL ou RALT)
+    // Apenas FN está ativo (sem RCTL, RALT ou RSFT)
     return KEYMOD_FN;
 }
 
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [WIN_BASE] = LAYOUT_ansi_108(
-        KC_ESC,             KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,     KC_F12,     KC_PSCR,  KC_CTANA, UG_NEXT,  _______,  _______,  _______,  _______,
-        KC_GRV,   KC_1,     KC_2,     KC_3,     KC_4,     KC_5,     KC_6,     KC_7,     KC_8,     KC_9,     KC_0,     KC_MINS,  KC_EQL,     KC_BSPC,    KC_INS,   KC_HOME,  KC_PGUP,  KC_NUM,   KC_PSLS,  KC_PAST,  KC_PMNS,
-        KC_TAB,   KC_Q,     KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,     KC_U,     KC_I,     KC_O,     KC_P,     KC_LBRC,  KC_RBRC,    KC_BSLS,    KC_DEL,   KC_END,   KC_PGDN,  KC_P7,    KC_P8,    KC_P9,
-        KC_CAPS,  KC_A,     KC_S,     KC_D,     KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,              KC_ENT,                                   KC_P4,    KC_P5,    KC_P6,    KC_PPLS,
-        KC_LSFT,            KC_Z,     KC_X,     KC_C,     KC_V,     KC_B,     KC_N,     KC_M,     KC_COMM,  KC_DOT,   KC_SLSH,              KC_RSFT,              KC_UP,              KC_P1,    KC_P2,    KC_P3,
-        KC_LCTL,  KC_LWIN,  KC_LALT,                                KC_SPC,                                 KC_RALT,  KC_RWIN,  MO(WIN_FN), KC_RCTL,    KC_LEFT,  KC_DOWN,  KC_RGHT,  KC_P0,              KC_PDOT,  KC_PENT),
+        KC_ESC,                  KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,     KC_F12,     KC_PSCR,  KC_CTANA, UG_NEXT,  _______,  _______,  _______,  _______,
+        KC_GRV,        KC_1,     KC_2,     KC_3,     KC_4,     KC_5,     KC_6,     KC_7,     KC_8,     KC_9,     KC_0,     KC_MINS,  KC_EQL,     KC_BSPC,    KC_INS,   KC_HOME,  KC_PGUP,  KC_NUM,   KC_PSLS,  KC_PAST,  KC_PMNS,
+        KC_TAB,        KC_Q,     KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,     KC_U,     KC_I,     KC_O,     KC_P,     KC_LBRC,  KC_RBRC,    KC_BSLS,    KC_DEL,   KC_END,   KC_PGDN,  KC_P7,    KC_P8,    KC_P9,
+        LSFT(KC_TAB),  KC_A,     KC_S,     KC_D,     KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,              KC_ENT,                                   KC_P4,    KC_P5,    KC_P6,    KC_PPLS,
+        KC_LSFT,                 KC_Z,     KC_X,     KC_C,     KC_V,     KC_B,     KC_N,     KC_M,     KC_COMM,  KC_DOT,   KC_SLSH,              KC_RSFT,              KC_UP,              KC_P1,    KC_P2,    KC_P3,
+        KC_LCTL,       KC_LWIN,  KC_LALT,                                KC_SPC,                                 KC_RALT,  KC_RWIN,  MO(WIN_FN), KC_RCTL,    KC_LEFT,  KC_DOWN,  KC_RGHT,  KC_P0,              KC_PDOT,  KC_PENT),
 
     [WIN_FN] = LAYOUT_ansi_108(
-        _______,            KC_BRID,  KC_BRIU,  KC_TASK,  KC_FILE,  UG_VALD,  UG_VALU,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,    KC_VOLU,    _______,  _______,  UG_TOGG,  _______,  _______,  _______,  _______,
-        _______,  BT_HST1,  BT_HST2,  BT_HST3,  P2P4G,    _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,    _______,    _______,  _______,  _______,  _______,  _______,  _______,  _______,
-        UG_TOGG,  UG_NEXT,  UG_VALU,  UG_HUEU,  UG_SATU,  UG_SPDU,  _______,  _______,  _______,  _______,  _______,  _______,  _______,    _______,    _______,  _______,  _______,  _______,  _______,  _______,
-        _______,  UG_PREV,  UG_VALD,  UG_HUED,  UG_SATD,  UG_SPDD,  _______,  _______,  _______,  _______,  _______,  _______,              _______,                                  _______,  _______,  _______,  _______,
-        _______,            _______,  _______,  _______,  _______,  BAT_LVL,  NK_TOGG,  _______,  _______,  _______,  _______,              _______,              _______,            _______,  _______,  _______,
-        _______,  _______,  _______,                                _______,                                _______,  _______,  _______,    _______,    _______,  _______,  _______,  _______,            _______,  _______)
+        _______,                 KC_BRID,  KC_BRIU,  KC_TASK,  KC_FILE,  UG_VALD,  UG_VALU,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,    KC_VOLU,    _______,  _______,  UG_TOGG,  _______,  _______,  _______,  _______,
+        _______,       BT_HST1,  BT_HST2,  BT_HST3,  P2P4G,    _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,    _______,    _______,  _______,  _______,  _______,  _______,  _______,  _______,
+        UG_TOGG,       UG_NEXT,  UG_VALU,  UG_HUEU,  UG_SATU,  UG_SPDU,  _______,  _______,  _______,  _______,  _______,  _______,  _______,    _______,    _______,  _______,  _______,  _______,  _______,  _______,
+        _______,       UG_PREV,  UG_VALD,  UG_HUED,  UG_SATD,  UG_SPDD,  _______,  _______,  _______,  _______,  _______,  _______,              _______,                                  _______,  _______,  _______,  _______,
+        _______,                 _______,  _______,  _______,  _______,  BAT_LVL,  NK_TOGG,  _______,  _______,  _______,  _______,              _______,              _______,            _______,  _______,  _______,
+        _______,       _______,  _______,                                _______,                                _______,  _______,  _______,    _______,    _______,  _______,  _______,  _______,            _______,  _______)
 };
 // clang-format on
 
@@ -158,10 +142,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     keymod_t keymod = KEYMOD_NONE;
     if (is_custom || is_position) {
         keymod = get_keymod(record);
-        // Se keymod for INVALID, passa adiante
-        if (keymod == KEYMOD_INVALID) {
-            return true;
-        }
         
         // Para position_t, usa a mesma lógica de custom: verifica bitwise
         if (is_position) {
@@ -225,7 +205,11 @@ void keyboard_post_init_user(void) {
     // Inicializa settings (deve ser chamado antes de qualquer módulo que dependa de settings)
     settings_init();
     
+    // Inicializa modifiers primeiro (outros módulos podem registrar callbacks)
+    modifiers_init();
+    
     // Registra hooks de todos os módulos (exceto eeconfig_init, já registrados em keyboard_pre_init_user)
+    modifiers_init_hooks();
     custom_init_hooks();
     hold_init_hooks();
     toggle_init_hooks();

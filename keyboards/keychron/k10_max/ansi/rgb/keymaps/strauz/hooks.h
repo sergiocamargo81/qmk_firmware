@@ -44,8 +44,8 @@ void hooks_keyboard_post_init_dispatch(void);
 
 // Tamanho do array de callbacks
 // ATENÇÃO: Se adicionar um novo evento que registre neste hook, AUMENTE este valor!
-// Registros atuais: hold, toggle, persistence (3)
-#define HOOKS_MATRIX_MAX_CALLBACKS 3
+// Registros atuais: hold, toggle, persistence, modifiers (4)
+#define HOOKS_MATRIX_MAX_CALLBACKS 4
 
 // Tipo de callback para matrix_scan_user
 typedef void (*matrix_scan_callback_t)(void);
@@ -62,8 +62,8 @@ void hooks_matrix_scan_dispatch(void);
 
 // Tamanho do array de callbacks
 // ATENÇÃO: Se adicionar um novo evento que registre neste hook, AUMENTE este valor!
-// Registros atuais: hold, toggle, numlock, profiles, persistence (5)
-#define HOOKS_RGB_MAX_CALLBACKS 5
+// Registros atuais: hold, toggle, numlock, profiles, persistence, modifiers (6)
+#define HOOKS_RGB_MAX_CALLBACKS 6
 
 // Tipo de callback para rgb_matrix_indicators_user
 typedef bool (*rgb_indicators_callback_t)(void);

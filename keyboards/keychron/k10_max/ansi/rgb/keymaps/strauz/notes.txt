@@ -1,0 +1,3 @@
+clear && qmk compile -kb keychron/k10_max/ansi/rgb -km strauz
+
+git add . && git commit --amend && clear && git status

@@ -19,9 +19,11 @@ OPT_DEFS += -DEECONFIG_USER_DATA_VERSION=1
 SRC += profiles.c settings.c kind.c persist.c
 SRC += behavior.c
 SRC += hooks.c
+SRC += pulse.c
 SRC += profiles/profiles.c
 SRC += custom/custom.c
 SRC += custom/hold/hold.c
 SRC += custom/toggle/toggle.c
 SRC += persistence/persistence.c
 SRC += numlock/numlock.c
+SRC += modifiers/modifiers.c

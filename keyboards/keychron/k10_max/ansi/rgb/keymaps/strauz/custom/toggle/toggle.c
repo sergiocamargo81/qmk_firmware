@@ -9,6 +9,7 @@
 #include "../../hooks.h"
 #include "../../keymod.h"  // Para keymod_t
 #include "../hold/hold.h"  // Para deactivate_all_hold
+#include "../../pulse.h"
 
 // Declarações forward
 bool toggle_process_record_user(keyrecord_t *record, keymod_t keymod);
@@ -78,9 +79,11 @@ void toggle_key_add_callback(uint8_t row, uint8_t col, customs_t behavior) {
         // Inicializa estado apenas para esta tecla
         key->state = TOGGLE_OFF;
         // Atualiza o LED imediatamente após a associação
-        // O LED ficará verde (TOGGLE_OFF) até que a tecla seja pressionada
+        // O LED ficará verde pulsante (TOGGLE_OFF) até que a tecla seja pressionada
+        // A pulsação será aplicada em toggle_update_indicators()
         if (key->led_index != NO_LED) {
-            rgb_matrix_set_color(key->led_index, 0, 255, 0);  // Verde quando desligado
+            // Inicializa com verde, a pulsação será aplicada no próximo toggle_update_indicators
+            rgb_matrix_set_color(key->led_index, 0, 255, 0);
         }
     }
 }
@@ -170,6 +173,7 @@ void toggle_sync_enabled_states(void) {
     }
 }
 
+
 void toggle_update_indicators(void) {
     // Atualiza apenas os LEDs das teclas que estão associadas a TOGGLE
     // Verifica diretamente o behavior atual para garantir que apenas teclas realmente associadas sejam atualizadas
@@ -181,7 +185,12 @@ void toggle_update_indicators(void) {
             // Esta tecla está associada a TOGGLE e tem led_index válido
             // Atualiza LED baseado no estado
             switch (key->state) {
-                case TOGGLE_OFF: rgb_matrix_set_color(key->led_index, 0, 255, 0); break;  // Verde quando desligado
+                case TOGGLE_OFF: {
+                    // Estado inicial: verde pulsante
+                    uint8_t brightness = calculate_pulse_brightness();
+                    rgb_matrix_set_color(key->led_index, 0, brightness, 0);
+                    break;
+                }
                 case TOGGLE_ON: rgb_matrix_set_color(key->led_index, 255, 0, 0); break;   // Vermelho quando ligado
             }
         }

@@ -6,8 +6,7 @@
 #include "../customs.h"  // Para KEY_CUSTOM_DISABLED
 #include "../keymod.h"  // Para keymod_t
 #include "../hooks.h"
-#include "rgb_matrix.h"  // Para g_rgb_timer
-#include "lib8tion.h"     // Para sin8, scale8
+#include "../pulse.h"
 
 // Declaração forward
 bool profiles_process_record_user(keyrecord_t *record, keymod_t keymod);
@@ -39,30 +38,6 @@ profiles_state_t profiles_state = {
                    PROFILES_LED_EMPTY, PROFILES_LED_EMPTY, PROFILES_LED_EMPTY, PROFILES_LED_EMPTY, PROFILES_LED_EMPTY},
     .led_initialized = false
 };
-
-// ===== Funções Auxiliares =====
-// Função auxiliar para calcular brilho pulsante
-// Retorna valor de 0-255 baseado em seno do tempo
-static uint8_t calculate_pulse_brightness(void) {
-    // Usa g_rgb_timer para criar efeito de pulsação
-    // Velocidade: divide por 8 para pulsação lenta (~2 segundos por ciclo)
-    uint8_t time = scale16by8(g_rgb_timer, 1);
-    // sin8 retorna 0-255, onde 128 é o meio
-    // Ajusta para que o mínimo seja ~30% e máximo seja 100%
-    uint8_t sine = sin8(time);
-    // Escala de 77 (30% de 255) a 255 (100%)
-    return scale8(sine, 178) + 77;
-}
-
-static bool profiles_is_empty(profile_t* profile) {
-    if (!profile) return true;
-    for (uint8_t i = 0; i < PROFILES_KEYS_COUNT; i++) {
-        if (profile->behaviors[i] != KEY_CUSTOM_DISABLED) {
-            return false;
-        }
-    }
-    return true;
-}
 
 // ===== Funções de Registro =====
 
@@ -128,14 +103,15 @@ void profiles_update_indicators(void) {
         // Obtém o state armazenado (já inicializado em profiles_state.led_states)
         profiles_led_state_t state = profiles_state.led_states[i];
         
-        // Apenas profile ativo é indicado (verde pulsante), outros ficam desligados
+        // Apenas profile ativo é indicado (verde pulsante)
+        // Quando não ativo, não faz nada - permite que o efeito padrão do teclado seja aplicado
         if (state == PROFILES_LED_ACTIVE) {
             uint8_t brightness = calculate_pulse_brightness();
             rgb_matrix_set_color(position->led_index, 0, brightness, 0);
-        } else {
-            // Desligado quando não ativo
-            rgb_matrix_set_color(position->led_index, 0, 0, 0);
         }
+        // Quando não ativo (PROFILES_LED_EMPTY), não faz nada
+        // O efeito padrão do teclado será aplicado automaticamente
+        // Se o RGB estiver desligado, a tecla ficará desligada naturalmente
     }
 }
 

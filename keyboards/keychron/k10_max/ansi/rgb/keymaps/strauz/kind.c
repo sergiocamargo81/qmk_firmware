@@ -87,6 +87,79 @@ static custom_t g_custom_pool[CUSTOM_COUNT] = {
     {.base = {KIND_CUSTOM}, .row = 5, .col = 6,  .keycode = KC_SPC,  .led_index = 98, .supported_keymod = KEYMOD_CUSTOM_MASK, .custom_index = 36, .function = NULL},  // 36 (KC_SPC)
 };
 
+// Pool de disabled: teclas que não são position, custom nem modifier
+// Led_index usados: positions (36, 54, 56, 57, 58, 76, 77, 78, 92, 93, 94, 106) + customs (19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 98) + modifiers (90, 99, 100, 102)
+static disabled_t g_disabled_pool[DISABLED_COUNT] = {
+    {.base = {KIND_DISABLED}, .row = 0, .col = 0, .keycode = KC_ESC, .led_index = 0},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 2, .keycode = KC_F1, .led_index = 1},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 3, .keycode = KC_F2, .led_index = 2},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 4, .keycode = KC_F3, .led_index = 3},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 5, .keycode = KC_F4, .led_index = 4},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 6, .keycode = KC_F5, .led_index = 5},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 7, .keycode = KC_F6, .led_index = 6},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 8, .keycode = KC_F7, .led_index = 7},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 9, .keycode = KC_F8, .led_index = 8},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 10, .keycode = KC_F9, .led_index = 9},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 11, .keycode = KC_F10, .led_index = 10},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 12, .keycode = KC_F11, .led_index = 11},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 13, .keycode = KC_F12, .led_index = 12},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 14, .keycode = KC_PSCR, .led_index = 13},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 15, .keycode = 32265, .led_index = 14},  // KC_CTANA (custom code)
+    {.base = {KIND_DISABLED}, .row = 0, .col = 16, .keycode = 30753, .led_index = 15},  // UG_NEXT (custom code)
+    {.base = {KIND_DISABLED}, .row = 0, .col = 17, .keycode = KC_TRANSPARENT, .led_index = 16},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 18, .keycode = KC_TRANSPARENT, .led_index = 17},
+    {.base = {KIND_DISABLED}, .row = 0, .col = 19, .keycode = KC_TRANSPARENT, .led_index = 18},
+    // 19 usado (custom)
+    // 20-31 usados (custom)
+    {.base = {KIND_DISABLED}, .row = 1, .col = 13, .keycode = KC_BSPC, .led_index = 32},
+    {.base = {KIND_DISABLED}, .row = 1, .col = 14, .keycode = KC_INS, .led_index = 33},
+    {.base = {KIND_DISABLED}, .row = 1, .col = 15, .keycode = KC_HOME, .led_index = 34},
+    {.base = {KIND_DISABLED}, .row = 1, .col = 16, .keycode = KC_PGUP, .led_index = 35},
+    // 36 usado (position)
+    {.base = {KIND_DISABLED}, .row = 1, .col = 18, .keycode = KC_PSLS, .led_index = 37},
+    {.base = {KIND_DISABLED}, .row = 1, .col = 19, .keycode = KC_PAST, .led_index = 38},
+    {.base = {KIND_DISABLED}, .row = 2, .col = 0, .keycode = KC_TAB, .led_index = 39},
+    // 40-52 usados (custom)
+    {.base = {KIND_DISABLED}, .row = 2, .col = 14, .keycode = KC_DEL, .led_index = 53},
+    // 54 usado (position)
+    {.base = {KIND_DISABLED}, .row = 2, .col = 16, .keycode = KC_PGDN, .led_index = 55},
+    // 56-58 usados (position)
+    {.base = {KIND_DISABLED}, .row = 3, .col = 0, .keycode = LSFT(KC_TAB), .led_index = 59},
+    // 60-70 usados (custom)
+    {.base = {KIND_DISABLED}, .row = 3, .col = 12, .keycode = KC_ENT, .led_index = 71},
+    {.base = {KIND_DISABLED}, .row = 3, .col = 13, .keycode = KC_TRANSPARENT, .led_index = 72},
+    {.base = {KIND_DISABLED}, .row = 3, .col = 14, .keycode = KC_PMNS, .led_index = 73},  // KC_KP_MINUS = 86
+    {.base = {KIND_DISABLED}, .row = 3, .col = 15, .keycode = KC_PPLS, .led_index = 74},  // KC_KP_PLUS = 87
+    {.base = {KIND_DISABLED}, .row = 3, .col = 16, .keycode = KC_PENT, .led_index = 75},  // KC_KP_ENTER = 88
+    // 76-78 usados (position)
+    {.base = {KIND_DISABLED}, .row = 4, .col = 0, .keycode = KC_LSFT, .led_index = 79},
+    // 80-89 usados (custom)
+    // 90 usado (modifier - RSFT)
+    {.base = {KIND_DISABLED}, .row = 4, .col = 15, .keycode = KC_UP, .led_index = 91},
+    // 92-94 usados (position)
+    {.base = {KIND_DISABLED}, .row = 5, .col = 0, .keycode = KC_LCTL, .led_index = 95},
+    {.base = {KIND_DISABLED}, .row = 5, .col = 1, .keycode = KC_LWIN, .led_index = 96},
+    {.base = {KIND_DISABLED}, .row = 5, .col = 2, .keycode = KC_LALT, .led_index = 97},
+    // 98 usado (custom)
+    // 99 usado (modifier - RALT)
+    // 100 usado (RWIN - col 11)
+    {.base = {KIND_DISABLED}, .row = 5, .col = 11, .keycode = KC_RWIN, .led_index = 100},
+    // 102 usado (modifier - RCTL)
+    {.base = {KIND_DISABLED}, .row = 5, .col = 14, .keycode = KC_LEFT, .led_index = 103},
+    {.base = {KIND_DISABLED}, .row = 5, .col = 15, .keycode = KC_DOWN, .led_index = 104},
+    {.base = {KIND_DISABLED}, .row = 5, .col = 16, .keycode = KC_RGHT, .led_index = 105},
+    // 106 usado (position)
+    {.base = {KIND_DISABLED}, .row = 5, .col = 19, .keycode = KC_PDOT, .led_index = 107},
+};
+
+// Pool de modifiers: RSHIFT, RALT, FN, RCTRL
+static modifier_t g_modifier_pool[MODIFIER_COUNT] = {
+    {.base = {KIND_MODIFIER}, .row = 4, .col = 13, .keycode = KC_RSFT, .led_index = 90},  // RSFT
+    {.base = {KIND_MODIFIER}, .row = 5, .col = 10, .keycode = KC_RALT, .led_index = 99},  // RALT
+    {.base = {KIND_MODIFIER}, .row = 5, .col = 12, .keycode = MO(WIN_FN), .led_index = 101},  // FN
+    {.base = {KIND_MODIFIER}, .row = 5, .col = 13, .keycode = KC_RCTL, .led_index = 102},  // RCTL
+};
+
 // ===== Grid =====
 
 // Grid único: NULL = célula vazia, caso contrário aponta para base_t dentro de algum objeto
@@ -121,6 +194,20 @@ custom_t* kind_get_custom(uint8_t row, uint8_t col) {
     return (custom_t*)entry;
 }
 
+// Cast seguro para disabled_t
+disabled_t* kind_get_disabled(uint8_t row, uint8_t col) {
+    base_t* entry = kind_get_grid_entry(row, col);
+    if (entry == NULL || entry->kind != KIND_DISABLED) return NULL;
+    return (disabled_t*)entry;
+}
+
+// Cast seguro para modifier_t
+modifier_t* kind_get_modifier(uint8_t row, uint8_t col) {
+    base_t* entry = kind_get_grid_entry(row, col);
+    if (entry == NULL || entry->kind != KIND_MODIFIER) return NULL;
+    return (modifier_t*)entry;
+}
+
 // Obtém custom_t por custom_index (busca linear no pool)
 custom_t* kind_get_custom_by_index(uint8_t custom_index) {
     if (custom_index >= CUSTOM_COUNT) return NULL;
@@ -144,6 +231,20 @@ void kind_iterate_positions(bool (*callback)(position_t* pos, void* user_data), 
 void kind_iterate_customs(bool (*callback)(custom_t* custom, void* user_data), void* user_data) {
     for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
         if (!callback(&g_custom_pool[i], user_data)) return;
+    }
+}
+
+// Itera sobre pool de disabled
+void kind_iterate_disabled(bool (*callback)(disabled_t* disabled, void* user_data), void* user_data) {
+    for (uint8_t i = 0; i < DISABLED_COUNT; i++) {
+        if (!callback(&g_disabled_pool[i], user_data)) return;
+    }
+}
+
+// Itera sobre pool de modifiers
+void kind_iterate_modifiers(bool (*callback)(modifier_t* modifier, void* user_data), void* user_data) {
+    for (uint8_t i = 0; i < MODIFIER_COUNT; i++) {
+        if (!callback(&g_modifier_pool[i], user_data)) return;
     }
 }
 
@@ -186,6 +287,24 @@ void kind_init_grid(void) {
         if (in_bounds(position->row, position->col)) {
             // Registra no grid (sobrescreve custom se houver colisão)
             g_grid[position->row][position->col] = (base_t*)position;
+        }
+    }
+    
+    // Preenche grid com modifiers (sobrescreve positions e customs se houver colisão)
+    for (uint8_t i = 0; i < MODIFIER_COUNT; i++) {
+        modifier_t* modifier = &g_modifier_pool[i];
+        if (in_bounds(modifier->row, modifier->col)) {
+            // Registra no grid (sobrescreve position e custom se houver colisão)
+            g_grid[modifier->row][modifier->col] = (base_t*)modifier;
+        }
+    }
+    
+    // Preenche grid com disabled (sobrescreve positions, customs e modifiers se houver colisão)
+    for (uint8_t i = 0; i < DISABLED_COUNT; i++) {
+        disabled_t* disabled = &g_disabled_pool[i];
+        if (in_bounds(disabled->row, disabled->col)) {
+            // Registra no grid (sobrescreve position, custom e modifier se houver colisão)
+            g_grid[disabled->row][disabled->col] = (base_t*)disabled;
         }
     }
 }

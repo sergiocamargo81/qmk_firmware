@@ -8,6 +8,8 @@
 #include "../custom.h"
 #include "../../hooks.h"
 #include "../../keymod.h"  // Para keymod_t
+#include "../../pulse.h"
+#include <lib/lib8tion/lib8tion.h> // Para scale8
 
 // Declarações forward
 bool hold_process_record_user(keyrecord_t *record, keymod_t keymod);
@@ -77,8 +79,10 @@ void hold_key_add_callback(uint8_t row, uint8_t col, customs_t behavior) {
         // Inicializa estado apenas para esta tecla
         key->state = WAITING;
         // Atualiza o LED imediatamente após a associação
-        // O LED ficará cinza (WAITING) indicando que está aguardando
+        // O LED ficará cinza pulsante (WAITING) indicando que está aguardando
+        // A pulsação será aplicada em update_indicators()
         if (key->led_index != NO_LED) {
+            // Inicializa com cinza médio, a pulsação será aplicada no próximo update_indicators
             rgb_matrix_set_color(key->led_index, 128, 128, 128);
         }
     }
@@ -183,6 +187,7 @@ void sync_enabled_states(void) {
     }
 }
 
+
 void update_indicators(void) {
     // Atualiza apenas os LEDs das teclas que estão associadas a HOLD
     // Verifica diretamente o behavior atual para garantir que apenas teclas realmente associadas sejam atualizadas
@@ -195,7 +200,13 @@ void update_indicators(void) {
             // Atualiza LED baseado no estado
             if (key->state != DISABLED) {
             switch (key->state) {
-                case WAITING: rgb_matrix_set_color(key->led_index, 128, 128, 128); break;
+                case WAITING: {
+                    // Estado inicial: cinza pulsante
+                    uint8_t brightness = calculate_pulse_brightness();
+                    uint8_t gray = scale8(brightness, 128);  // Escala para cinza (128 = 50% de 255)
+                    rgb_matrix_set_color(key->led_index, gray, gray, gray);
+                    break;
+                }
                 case PRESSING: rgb_matrix_set_color(key->led_index, 0, 255, 0); break;
                 case FIRING: rgb_matrix_set_color(key->led_index, 255, 0, 0); break;
                 case RESTING: rgb_matrix_set_color(key->led_index, 255, 255, 0); break;

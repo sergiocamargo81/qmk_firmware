@@ -4,8 +4,7 @@
 #include "../kind.h"
 #include "../hooks.h"
 #include "../keymod.h"  // Para keymod_t
-#include "rgb_matrix.h"  // Para g_rgb_timer
-#include "lib8tion.h"     // Para sin8, scale8
+#include "../pulse.h"
 
 // Declaração forward
 bool numlock_process_record_user(keyrecord_t *record, keymod_t keymod);
@@ -62,18 +61,6 @@ static void numlock_matrix_scan_user(void) {
     // Vazio - estado é verificado diretamente em rgb_matrix_indicators_user
 }
 
-// Função auxiliar para calcular brilho pulsante
-// Retorna valor de 0-255 baseado em seno do tempo
-static uint8_t calculate_pulse_brightness(void) {
-    // Usa g_rgb_timer para criar efeito de pulsação
-    // Velocidade: divide por 8 para pulsação lenta (~2 segundos por ciclo)
-    uint8_t time = scale16by8(g_rgb_timer, 1);
-    // sin8 retorna 0-255, onde 128 é o meio
-    // Ajusta para que o mínimo seja ~30% e máximo seja 100%
-    uint8_t sine = sin8(time);
-    // Escala de 77 (30% de 255) a 255 (100%)
-    return scale8(sine, 178) + 77;
-}
 
 // Hook rgb_matrix_indicators_user
 static bool numlock_rgb_matrix_indicators_user(void) {
