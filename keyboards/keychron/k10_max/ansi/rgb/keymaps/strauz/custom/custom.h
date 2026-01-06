@@ -73,6 +73,10 @@ void custom_register_positions(void);
 // Deve ser chamado durante custom_keyboard_post_init_user
 void custom_init(void);
 
+// ===== Callback de Notificação de FN =====
+// Nota: Callbacks de FN são gerenciados diretamente por cada módulo (hold, toggle, unassociated)
+// através de modifiers_register_fn_callback em keymap.c
+
 // ===== Inicialização de Hooks =====
 
 // Registra hooks QMK para este módulo

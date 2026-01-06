@@ -2,14 +2,14 @@
 #define NUMLOCK_H
 
 #include QMK_KEYBOARD_H
+#include "../kind.h"  // Para numlock_t
 
-// ===== Tipos =====
-typedef struct {
-    uint8_t led_index;
-} numlock_t;
+// Usa numlock_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, supported_keymod, function)
+// Campos modificáveis: state (uint8_t) - não usado neste módulo
 
 // ===== Variáveis Globais =====
-extern numlock_t numlock_key;
+// Cache do ponteiro para numlock_t de KC_NUM (inicializado durante init)
+extern numlock_t* numlock_position;
 
 // ===== Funções =====
 // Registra a posição de KC_NUM na matriz de behavior

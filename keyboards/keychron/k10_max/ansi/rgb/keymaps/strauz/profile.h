@@ -1,5 +1,5 @@
-#ifndef PROFILES_H
-#define PROFILES_H
+#ifndef PROFILE_H
+#define PROFILE_H
 
 #include QMK_KEYBOARD_H
 #include "customs.h"  // Para customs_t
@@ -29,10 +29,13 @@ typedef struct {
 // ===== Functions =====
 
 // Retorna o profile ativo
-profile_t* profiles_get_active_profile(profiles_t* profiles);
+profile_t* profile_get_active_profile(profiles_t* profiles);
 
 // Define o profile ativo
-void profiles_set_active_profile(profiles_t* profiles, uint8_t index);
+void profile_set_active_profile(profiles_t* profiles, uint8_t index);
 
-#endif // PROFILES_H
+// Verifica se o profile ativo está vazio
+// Retorna true se o profile ativo está vazio ou não existe, false caso contrário
+bool profile_is_active_profile_empty(void);
 
+#endif // PROFILE_H

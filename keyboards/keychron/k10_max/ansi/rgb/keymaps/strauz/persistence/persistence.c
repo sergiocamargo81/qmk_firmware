@@ -8,15 +8,16 @@
 #include "../behavior.h"  // Para behavior_register_position_function
 #include "../keymod.h"  // Para keymod_t
 #include "../hooks.h"
+#include "../colors.h"  // Para cores centralizadas
 #include "../pulse.h"
 
 // ===== Variáveis Globais =====
 
 persistence_t persistence = {
     .state = PERSISTENCE_IDLE,
-    .next_state = PERSISTENCE_IDLE,
     .led_index = NO_LED,
     .save_timer = 0,
+    .save_success = false,
     .led_initialized = false,
     .kc_end_row = 0,
     .kc_end_col = 0
@@ -30,7 +31,7 @@ bool persistence_process_record_user(keyrecord_t *record, keymod_t keymod);
 // Registra a posição de KC_END na matriz de behavior
 // Usa posição fixa: row=2, col=15
 void persistence_register_position(void) {
-    position_t* pos = kind_get_position(2, 15);
+    persistence_key_t* pos = kind_get_persistence(2, 15);
     if (pos) {
         // Cache da posição para evitar chamadas repetidas
         persistence.kc_end_row = pos->row;
@@ -44,7 +45,7 @@ void persistence_register_position(void) {
 // Inicializa LED index para persistência
 // Usa posição fixa: row=2, col=15
 void persistence_init_led_index(void) {
-    position_t* pos = kind_get_position(2, 15);
+    persistence_key_t* pos = kind_get_persistence(2, 15);
     if (pos) {
         persistence.led_index = pos->led_index;
     } else {
@@ -82,7 +83,8 @@ bool persistence_save(void) {
     
     // Força atualização imediata do LED para amarelo
     if (persistence.led_index != NO_LED) {
-        rgb_matrix_set_color(persistence.led_index, 255, 255, 0);  // Amarelo sólido
+        color_rgb_t yellow = color_get_rgb(COLOR_YELLOW);
+        rgb_matrix_set_color(persistence.led_index, yellow.r, yellow.g, yellow.b);  // Amarelo sólido
     }
 
     settings_t* working = settings_get_working();
@@ -93,20 +95,17 @@ bool persistence_save(void) {
 
     bool success = persist_write_settings(working);
     if (!success) {
-        // Erro ao salvar: define próximo estado como vermelho sólido por 3 segundos
-        // O estado SAVING será mantido por pelo menos 3 segundos em persistence_update_state()
-        persistence.next_state = PERSISTENCE_BLINKING_ERROR;
+        // Erro ao salvar: armazena resultado para determinar próximo estado
+        persistence.save_success = false;
         return false;
     }
 
     if (persistence_load()) {
-        // Salvo com sucesso: define próximo estado como verde sólido por 3 segundos
-        // O estado SAVING será mantido por pelo menos 3 segundos em persistence_update_state()
-        persistence.next_state = PERSISTENCE_BLINKING_SAVED;
+        // Salvo com sucesso: armazena resultado para determinar próximo estado
+        persistence.save_success = true;
     } else {
-        // Erro ao carregar: define próximo estado como vermelho sólido por 3 segundos
-        // O estado SAVING será mantido por pelo menos 3 segundos em persistence_update_state()
-        persistence.next_state = PERSISTENCE_BLINKING_ERROR;
+        // Erro ao carregar: armazena resultado para determinar próximo estado
+        persistence.save_success = false;
         return false;
     }
 
@@ -119,8 +118,12 @@ void persistence_update_state(void) {
     if (persistence.state == PERSISTENCE_SAVING) {
         // Mantém estado SAVING por pelo menos 3 segundos
         if (timer_elapsed32(persistence.save_timer) >= 3000) {
-            // Após 3 segundos, muda para o próximo estado e reinicia timer
-            persistence.state = persistence.next_state;
+            // Após 3 segundos, determina próximo estado baseado no resultado do salvamento
+            if (persistence.save_success) {
+                persistence.state = PERSISTENCE_BLINKING_SAVED;
+            } else {
+                persistence.state = PERSISTENCE_BLINKING_ERROR;
+            }
             persistence.save_timer = timer_read32();
         }
         return; // Mantém estado SAVING até passar 3 segundos
@@ -138,13 +141,17 @@ void persistence_update_state(void) {
                 persistence.state = PERSISTENCE_IDLE;
             }
         }
+    } else if (persistence.state == PERSISTENCE_PRESSED) {
+        // Estado PRESSED: preserva enquanto a tecla está pressionada
+        // O estado será restaurado em persistence_process_record_user quando a tecla for soltada
+        return; // Não altera o estado PRESSED
     } else {
         // Estados normais: verifica diferença entre persisted e working
         if (persistence.state == PERSISTENCE_IDLE || persistence.state == PERSISTENCE_DIFF) {
             if (persistence_has_diff()) {
                 persistence.state = PERSISTENCE_DIFF;
             } else {
-            persistence.state = PERSISTENCE_IDLE;
+                persistence.state = PERSISTENCE_IDLE;
             }
         }
     }
@@ -157,47 +164,80 @@ void persistence_update_indicators(void) {
 
     switch (persistence.state) {
         case PERSISTENCE_IDLE:
-            // Sem diferença: LED desligado
-            rgb_matrix_set_color(persistence.led_index, 0, 0, 0);
+            // Sem diferença: branco pulsante
+            {
+                uint8_t brightness = calculate_pulse_brightness();
+                color_rgb_t white = color_apply_brightness(COLOR_WHITE, brightness);
+                rgb_matrix_set_color(persistence.led_index, white.r, white.g, white.b);
+            }
             break;
         case PERSISTENCE_DIFF:
             // Há diferença: verde pulsante
             {
                 uint8_t brightness = calculate_pulse_brightness();
-                rgb_matrix_set_color(persistence.led_index, 0, brightness, 0);
+                color_rgb_t green = color_apply_brightness(COLOR_GREEN, brightness);
+                rgb_matrix_set_color(persistence.led_index, green.r, green.g, green.b);
+            }
+            break;
+        case PERSISTENCE_PRESSED:
+            // END está pressionado (sem FN): verde contínuo
+            {
+                color_rgb_t green = color_get_rgb(COLOR_GREEN);
+                rgb_matrix_set_color(persistence.led_index, green.r, green.g, green.b);
             }
             break;
         case PERSISTENCE_SAVING:
             // Salvando: amarelo sólido (pelo menos 3 segundos)
-            rgb_matrix_set_color(persistence.led_index, 255, 255, 0);
+            {
+                color_rgb_t yellow = color_get_rgb(COLOR_YELLOW);
+                rgb_matrix_set_color(persistence.led_index, yellow.r, yellow.g, yellow.b);
+            }
             break;
         case PERSISTENCE_BLINKING_SAVED:
             // Verde sólido após salvar com sucesso (3 segundos)
-            rgb_matrix_set_color(persistence.led_index, 0, 255, 0);
+            {
+                color_rgb_t green = color_get_rgb(COLOR_GREEN);
+                rgb_matrix_set_color(persistence.led_index, green.r, green.g, green.b);
+            }
             break;
         case PERSISTENCE_BLINKING_ERROR:
             // Vermelho sólido após erro (3 segundos)
-            rgb_matrix_set_color(persistence.led_index, 255, 0, 0);
+            {
+                color_rgb_t red = color_get_rgb(COLOR_RED);
+                rgb_matrix_set_color(persistence.led_index, red.r, red.g, red.b);
+            }
             break;
     }
 }
 
 // ===== Funções de Hook QMK =====
 
-// Processa KC_END (FN+END para salvar) - baseado em posição, não keycode
+// Processa KC_END (FN+END para salvar, ou apenas END para feedback visual) - baseado em posição, não keycode
 bool persistence_process_record_user(keyrecord_t *record, keymod_t keymod) {
-    if (!record->event.pressed) return true;
-
+    bool pressed = record->event.pressed;
+    
     // Verifica se FN está ativo usando keymod
-    // keymod é um enum de flags, verifica se há interseção com KEYMOD_FN, KEYMOD_FN_RCTL ou KEYMOD_FN_RALT
-    keymod_t accepted_mask = KEYMOD_FN | KEYMOD_FN_RCTL | KEYMOD_FN_RALT;
-    if ((keymod & accepted_mask) == 0) {
-        return true;
+    // keymod é um enum de flags, verifica se contém qualquer modo com FN (FN_ONLY, FN_RCTL, FN_RALT, FN_RSFT)
+    bool fn_active = keymod_has_value(keymod, KEYMOD_FN_ONLY | KEYMOD_FN_RCTL | KEYMOD_FN_RALT | KEYMOD_FN_RSFT);
+    
+    if (pressed && fn_active) {
+        // FN+END: salva settings
+        persistence_save();
+        return false; // Consome o evento
+    } else {
+        // END sem FN: apenas atualiza estado para feedback visual
+        if (pressed) {
+            persistence.state = PERSISTENCE_PRESSED;
+        } else {
+            // Ao soltar, restaura estado baseado em diferença
+            if (persistence_has_diff()) {
+                persistence.state = PERSISTENCE_DIFF;
+            } else {
+                persistence.state = PERSISTENCE_IDLE;
+            }
+        }
+        return true; // Não consome o evento, permite processamento normal
     }
-
-    // Handler já está registrado para esta posição específica, não precisa verificar novamente
-    persistence_save();
-    return false; // Consome o evento
 }
 
 // Hook matrix_scan_user
@@ -222,10 +262,8 @@ static void persistence_keyboard_post_init_user(void) {
     // Inicializa estado baseado em diferença entre persisted e working
     if (persistence_has_diff()) {
         persistence.state = PERSISTENCE_DIFF;
-        persistence.next_state = PERSISTENCE_DIFF;
     } else {
         persistence.state = PERSISTENCE_IDLE;
-        persistence.next_state = PERSISTENCE_IDLE;
     }
 }
 

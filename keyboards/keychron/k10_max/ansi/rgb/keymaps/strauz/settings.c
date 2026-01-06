@@ -1,7 +1,7 @@
 #include "settings.h"
 
-#include "customs.h"  // Para KEY_CUSTOM_DISABLED e CUSTOMS_T_COUNT
-#include "profiles.h"
+#include "customs.h"  // Para KEY_CUSTOM_UNASSOCIATED e CUSTOMS_T_COUNT
+#include "profile.h"
 #include "persist.h"
 
 #include <string.h>
@@ -24,7 +24,7 @@ static void profiles_init_defaults(profiles_t* profiles) {
     for (uint8_t i = 0; i < PROFILES_COUNT; i++) {
         profiles->profiles[i].active = (i == PROFILES_DEFAULT_INDEX);
         profiles->profiles[i].index = i;
-        memset(profiles->profiles[i].behaviors, KEY_CUSTOM_DISABLED, sizeof(profiles->profiles[i].behaviors));
+        memset(profiles->profiles[i].behaviors, KEY_CUSTOM_UNASSOCIATED, sizeof(profiles->profiles[i].behaviors));
     }
 }
 
@@ -108,10 +108,10 @@ void settings_set_active_profile(uint8_t index) {
     }
     
     // Atualiza o profile ativo usando a função de profiles
-    profiles_set_active_profile(&working->profiles, index);
+    profile_set_active_profile(&working->profiles, index);
     
-    // Obtém o novo profile ativo (sempre válido após profiles_set_active_profile)
-    profile_t* new_profile = profiles_get_active_profile(&working->profiles);
+    // Obtém o novo profile ativo (sempre válido após profile_set_active_profile)
+    profile_t* new_profile = profile_get_active_profile(&working->profiles);
     
     // Notifica todos os callbacks registrados
     for (uint8_t i = 0; i < profile_changed_callback_count; i++) {

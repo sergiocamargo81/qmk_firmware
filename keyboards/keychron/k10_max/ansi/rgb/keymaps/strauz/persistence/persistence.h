@@ -7,8 +7,9 @@
 
 // Estados possíveis da persistência
 typedef enum {
-    PERSISTENCE_IDLE,           // Estado normal (sem diferença entre persisted e working) - branco
-    PERSISTENCE_DIFF,           // Há diferença entre persisted e working (verde contínuo)
+    PERSISTENCE_IDLE,           // Estado normal (sem diferença entre persisted e working) - branco pulsante
+    PERSISTENCE_DIFF,           // Há diferença entre persisted e working (verde pulsante)
+    PERSISTENCE_PRESSED,        // END está pressionado (sem FN) - verde contínuo
     PERSISTENCE_SAVING,         // Salvando (amarelo sólido por 3 segundos)
     PERSISTENCE_BLINKING_SAVED, // Verde sólido após salvar com sucesso (3 segundos)
     PERSISTENCE_BLINKING_ERROR  // Vermelho sólido após erro ao salvar (3 segundos)
@@ -17,9 +18,9 @@ typedef enum {
 // Estado do módulo persistence
 typedef struct {
     persistence_state_t state;  // Estado atual
-    persistence_state_t next_state;  // Próximo estado (usado durante SAVING)
     uint8_t led_index;          // LED index para KC_END
     uint32_t save_timer;        // Timer para controlar feedback visual (3 segundos)
+    bool save_success;           // Resultado do último salvamento (true = sucesso, false = erro)
     bool led_initialized;       // Se LED foi inicializado
     uint8_t kc_end_row;         // Cache da posição de KC_END (row)
     uint8_t kc_end_col;          // Cache da posição de KC_END (col)

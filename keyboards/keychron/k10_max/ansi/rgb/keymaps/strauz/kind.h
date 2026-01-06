@@ -15,10 +15,14 @@ typedef bool (*key_function_t)(keyrecord_t *record, keymod_t keymod);
 
 typedef enum {
     KIND_NONE = 0,
-    KIND_POSITION,
+    KIND_PROFILE,
+    KIND_NUMLOCK,
+    KIND_PERSISTENCE,
     KIND_CUSTOM,
     KIND_DISABLED,
-    KIND_MODIFIER
+    KIND_MODIFIER,
+    KIND_BOLD,
+    KIND_OTHER
 } kind_t;
 
 // Header comum (deve ser o primeiro membro para dispatch)
@@ -28,67 +32,130 @@ typedef struct {
 
 // ===== Tipos Concretos =====
 
-// Para teclas especiais: profiles (10), numlock (1), persistence (1) = 12 teclas
+// Para teclas de profile: 10 teclas (P0-P9)
 typedef struct {
-    base_t   base;               // Primeiro membro para dispatch
-    uint8_t  row;
-    uint8_t  col;
-    uint16_t keycode;            // Keycode da layer BASE
-    uint8_t  led_index;          // LED index (NO_LED se não tiver)
-    keymod_t supported_keymod;   // Enum único de keymod suportado
+    base_t   base;               // READONLY Primeiro membro para dispatch
+    uint8_t  row;                // READONLY
+    uint8_t  col;                // READONLY
+    uint16_t keycode;            // READONLY Keycode da layer BASE
+    uint8_t  led_index;          // READONLY LED index (0-127, nunca sobrescrever)
+    keymod_t accepted_keymods;   // READONLY Flags de keymod aceitos
     key_function_t function;     // Handler da posição (NULL se não tiver)
-} position_t;
+    uint8_t  state;              // Estado do módulo (uint8_t)
+} profile_key_t;
 
-// Para teclas custom: 48 teclas (custom_index 0-47)
+// Para tecla numlock: 1 tecla (KC_NUM)
 typedef struct {
-    base_t   base;               // Primeiro membro para dispatch
-    uint8_t  row;
-    uint8_t  col;
-    uint16_t keycode;            // Keycode da layer BASE
-    uint8_t  led_index;          // LED index (NO_LED se não tiver)
-    keymod_t supported_keymod;   // Enum único de keymod suportado
-    uint8_t  custom_index;       // Índice custom (0-47)
+    base_t   base;               // READONLY Primeiro membro para dispatch
+    uint8_t  row;                // READONLY
+    uint8_t  col;                // READONLY
+    uint16_t keycode;            // READONLY Keycode da layer BASE
+    uint8_t  led_index;          // READONLY LED index (0-127, nunca sobrescrever)
+    keymod_t accepted_keymods;   // READONLY Flags de keymod aceitos
     key_function_t function;     // Handler da posição (NULL se não tiver)
+    uint8_t  state;              // Estado do módulo (uint8_t)
+} numlock_t;
+
+// Para tecla persistence: 1 tecla (KC_END)
+typedef struct {
+    base_t   base;               // READONLY Primeiro membro para dispatch
+    uint8_t  row;                // READONLY
+    uint8_t  col;                // READONLY
+    uint16_t keycode;            // READONLY Keycode da layer BASE
+    uint8_t  led_index;          // READONLY LED index (0-127, nunca sobrescrever)
+    keymod_t accepted_keymods;   // READONLY Flags de keymod aceitos
+    key_function_t function;     // Handler da posição (NULL se não tiver)
+    uint8_t  state;              // Estado do módulo (uint8_t)
+} persistence_key_t;
+
+// Para teclas custom: 48 teclas (persist_index 0-47)
+typedef struct {
+    base_t   base;               // READONLY Primeiro membro para dispatch
+    uint8_t  row;                // READONLY
+    uint8_t  col;                // READONLY
+    uint16_t keycode;            // READONLY Keycode da layer BASE
+    uint8_t  led_index;          // READONLY LED index (0-127, nunca sobrescrever)
+    keymod_t accepted_keymods;   // READONLY Flags de keymod aceitos
+    uint8_t  persist_index;      // READONLY Índice persistente (0-47)
+    key_function_t function;     // Handler da posição (NULL se não tiver)
+    uint8_t  state;              // Estado do módulo (uint8_t)
+    uint32_t timer;              // Timer para hold/toggle (uint32_t)
 } custom_t;
 
 // Para teclas desabilitadas: teclas que não são position nem custom
 typedef struct {
-    base_t   base;               // Primeiro membro para dispatch
-    uint8_t  row;
-    uint8_t  col;
-    uint16_t keycode;            // Keycode da layer BASE
-    uint8_t  led_index;          // LED index (NO_LED se não tiver)
+    base_t   base;               // READONLY Primeiro membro para dispatch
+    uint8_t  row;                // READONLY
+    uint8_t  col;                // READONLY
+    uint16_t keycode;            // READONLY Keycode da layer BASE
+    uint8_t  led_index;          // READONLY LED index (0-127, nunca sobrescrever)
+    key_function_t function;     // Handler da posição (NULL se não tiver)
+    uint8_t  state;              // Estado do módulo (uint8_t)
 } disabled_t;
 
 // Para teclas modificadoras: RSHIFT, RALT, FN, RCTRL
 typedef struct {
-    base_t   base;               // Primeiro membro para dispatch
-    uint8_t  row;
-    uint8_t  col;
-    uint16_t keycode;            // Keycode da layer BASE
-    uint8_t  led_index;          // LED index (NO_LED se não tiver)
+    base_t   base;               // READONLY Primeiro membro para dispatch
+    uint8_t  row;                // READONLY
+    uint8_t  col;                // READONLY
+    uint16_t keycode;            // READONLY Keycode da layer BASE
+    uint8_t  led_index;          // READONLY LED index (0-127, nunca sobrescrever)
+    key_function_t function;     // Handler da posição (NULL se não tiver)
+    uint8_t  state;              // Estado do módulo (uint8_t)
 } modifier_t;
+
+// Para teclas bold: ESC, ENTER, BACKSPACE
+typedef struct {
+    base_t   base;               // READONLY Primeiro membro para dispatch
+    uint8_t  row;                // READONLY
+    uint8_t  col;                // READONLY
+    uint16_t keycode;            // READONLY Keycode da layer BASE
+    uint8_t  led_index;          // READONLY LED index (0-127, nunca sobrescrever)
+    key_function_t function;     // Handler da posição (NULL se não tiver)
+    uint8_t  state;              // Estado do módulo (uint8_t)
+} bold_t;
+
+// Para outras teclas modificadoras: TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
+typedef struct {
+    base_t   base;               // READONLY Primeiro membro para dispatch
+    uint8_t  row;                // READONLY
+    uint8_t  col;                // READONLY
+    uint16_t keycode;            // READONLY Keycode da layer BASE
+    uint8_t  led_index;          // READONLY LED index (0-127, nunca sobrescrever)
+    key_function_t function;     // Handler da posição (NULL se não tiver)
+    uint8_t  state;              // Estado do módulo (uint8_t)
+} others_t;
 
 // ===== Defines =====
 
-#define POSITION_COUNT 12  // 10 profiles + 1 numlock + 1 persistence
-#define CUSTOM_COUNT   48  // 48 teclas custom (custom_index 0-47)
-#define DISABLED_COUNT 44  // Teclas que não são position, custom nem modifier
-#define MODIFIER_COUNT 4   // RSHIFT, RALT, FN, RCTRL
+#define PROFILE_COUNT     10  // 10 profiles (P0-P9)
+#define NUMLOCK_COUNT     1   // 1 numlock (KC_NUM)
+#define PERSISTENCE_COUNT 1   // 1 persistence (KC_END)
+#define CUSTOM_COUNT      48  // 48 teclas custom (persist_index 0-47)
+#define DISABLED_COUNT    34  // Teclas que não são profile, numlock, persistence, custom, modifier, bold nem other
+#define MODIFIER_COUNT    4   // RSHIFT, RALT, FN, RCTRL
+#define BOLD_COUNT        3   // ESC, ENTER, BACKSPACE
+#define OTHER_COUNT       7   // TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
 
 // ===== API de Acesso =====
 
 // Obtém entrada do grid (O(1))
 base_t* kind_get_grid_entry(uint8_t row, uint8_t col);
 
-// Cast seguro para position_t
-position_t* kind_get_position(uint8_t row, uint8_t col);
+// Cast seguro para profile_key_t
+profile_key_t* kind_get_profile(uint8_t row, uint8_t col);
+
+// Cast seguro para numlock_t
+numlock_t* kind_get_numlock(uint8_t row, uint8_t col);
+
+// Cast seguro para persistence_key_t
+persistence_key_t* kind_get_persistence(uint8_t row, uint8_t col);
 
 // Cast seguro para custom_t
 custom_t* kind_get_custom(uint8_t row, uint8_t col);
 
-// Obtém custom_t por custom_index
-custom_t* kind_get_custom_by_index(uint8_t custom_index);
+// Obtém custom_t por persist_index
+custom_t* kind_get_custom_by_index(uint8_t persist_index);
 
 // Cast seguro para disabled_t
 disabled_t* kind_get_disabled(uint8_t row, uint8_t col);
@@ -96,9 +163,20 @@ disabled_t* kind_get_disabled(uint8_t row, uint8_t col);
 // Cast seguro para modifier_t
 modifier_t* kind_get_modifier(uint8_t row, uint8_t col);
 
+// Cast seguro para bold_t
+bold_t* kind_get_bold(uint8_t row, uint8_t col);
 
-// Itera sobre pool de positions
-void kind_iterate_positions(bool (*callback)(position_t* pos, void* user_data), void* user_data);
+// Cast seguro para others_t
+others_t* kind_get_other(uint8_t row, uint8_t col);
+
+// Itera sobre pool de profiles
+void kind_iterate_profiles(bool (*callback)(profile_key_t* profile, void* user_data), void* user_data);
+
+// Itera sobre pool de numlock
+void kind_iterate_numlock(bool (*callback)(numlock_t* numlock, void* user_data), void* user_data);
+
+// Itera sobre pool de persistence
+void kind_iterate_persistence(bool (*callback)(persistence_key_t* persistence, void* user_data), void* user_data);
 
 // Itera sobre pool de customs
 void kind_iterate_customs(bool (*callback)(custom_t* custom, void* user_data), void* user_data);
@@ -108,6 +186,12 @@ void kind_iterate_disabled(bool (*callback)(disabled_t* disabled, void* user_dat
 
 // Itera sobre pool de modifiers
 void kind_iterate_modifiers(bool (*callback)(modifier_t* modifier, void* user_data), void* user_data);
+
+// Itera sobre pool de bold
+void kind_iterate_bold(bool (*callback)(bold_t* bold, void* user_data), void* user_data);
+
+// Itera sobre pool de other
+void kind_iterate_other(bool (*callback)(others_t* other, void* user_data), void* user_data);
 
 // Itera sobre todas as entradas do grid
 void kind_iterate_grid(bool (*callback)(base_t* entry, void* user_data), void* user_data);

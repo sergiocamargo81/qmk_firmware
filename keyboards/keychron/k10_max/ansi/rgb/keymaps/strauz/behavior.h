@@ -2,7 +2,7 @@
 #define BEHAVIOR_H
 
 #include QMK_KEYBOARD_H
-#include "kind.h"        // Para base_t, position_t, custom_t, key_function_t
+#include "kind.h"        // Para base_t, profile_key_t, numlock_t, persistence_t, custom_t, key_function_t
 #include "keymod.h"      // Para keymod_t
 
 // ===== API: Baseada em posição (keypos_t) =====
@@ -15,8 +15,8 @@ bool behavior_resolve_handler_by_position(uint8_t row, uint8_t col, key_function
 
 // ===== Funções para submódulos =====
 
-// Obtém custom_t por custom_index (0-47)
-custom_t* behavior_get_custom_by_index(uint8_t custom_index);
+// Obtém custom_t por persist_index (0-47)
+custom_t* behavior_get_custom_by_index(uint8_t persist_index);
 
 
 // Verifica se uma posição pode ter behavior custom

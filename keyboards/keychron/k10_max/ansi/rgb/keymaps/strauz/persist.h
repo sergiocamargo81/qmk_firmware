@@ -4,7 +4,7 @@
 #include QMK_KEYBOARD_H
 
 #include "settings.h"
-#include "profiles.h"
+#include "profile.h"
 
 // ===== Packing sizes =====
 // 2 bits por tecla => bytes por perfil:

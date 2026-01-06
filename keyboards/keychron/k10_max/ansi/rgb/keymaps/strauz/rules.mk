@@ -16,14 +16,19 @@ LTO_ENABLE = yes
 OPT_DEFS += -DEECONFIG_USER_DATA_SIZE=128
 OPT_DEFS += -DEECONFIG_USER_DATA_VERSION=1
 
-SRC += profiles.c settings.c kind.c persist.c
+SRC += profile.c settings.c kind.c persist.c
 SRC += behavior.c
 SRC += hooks.c
 SRC += pulse.c
+SRC += keymod.c
 SRC += profiles/profiles.c
 SRC += custom/custom.c
 SRC += custom/hold/hold.c
 SRC += custom/toggle/toggle.c
+SRC += custom/unassociated/unassociated.c
 SRC += persistence/persistence.c
 SRC += numlock/numlock.c
 SRC += modifiers/modifiers.c
+SRC += disabled/disabled.c
+SRC += bold/bold.c
+SRC += others/others.c

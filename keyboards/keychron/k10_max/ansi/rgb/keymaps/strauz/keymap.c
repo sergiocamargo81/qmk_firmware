@@ -11,83 +11,17 @@
 #include "custom/custom.h"
 #include "custom/hold/hold.h"
 #include "custom/toggle/toggle.h"
+#include "custom/unassociated/unassociated.h"
 #include "numlock/numlock.h"
 #include "profiles/profiles.h"
 #include "persistence/persistence.h"
 #include "modifiers/modifiers.h"
+#include "disabled/disabled.h"
+#include "bold/bold.h"
+#include "others/others.h"
 #include "settings.h"
-#include "profiles.h"
+#include "profile.h"
 #include "customs.h"
-
-// ===== Função Auxiliar para Estado dos Modificadores =====
-
-// Obtém o estado dos modificadores no momento do evento
-// Retorna um keymod_t enum conforme os modificadores ativos
-// Prioridade: RCTL > RALT > RSFT
-static keymod_t get_keymod(keyrecord_t *record) {
-    // Lê source_layer uma única vez no início
-    uint8_t source_layer = read_source_layers_cache(record->event.key);
-    
-    // Cacheia keycode uma única vez (usado em múltiplos lugares)
-    uint16_t keycode = 0;
-    bool keycode_valid = false;
-    if (source_layer < 255) {
-        keycode = keymap_key_to_keycode(source_layer, record->event.key);
-        keycode_valid = true;
-    }
-    
-    // Verifica se FN layer está ativo
-    // Caso mais comum primeiro: se source_layer já é WIN_FN, FN está ativo
-    bool fn_active = (source_layer == WIN_FN);
-    
-    // Se ainda não detectou FN, verifica outras condições (menos comuns)
-    if (!fn_active) {
-        // Cacheia layer_state_is(WIN_FN) apenas se necessário
-        fn_active = layer_state_is(WIN_FN);
-        
-        // Se ainda não detectou, verifica se a tecla atual é MO(WIN_FN)
-        if (!fn_active && keycode_valid && keycode == MO(WIN_FN)) {
-            fn_active = true;
-        }
-        
-        // Última verificação: se MO(WIN_FN) está sendo pressionado diretamente na matriz
-        // MO(WIN_FN) está na posição (5, 12) no keymap
-        // Isso garante que FN seja detectado mesmo se a layer não estiver ativa ainda
-        if (!fn_active && matrix_is_on(5, 12)) {
-            fn_active = true;
-        }
-    }
-    
-    // Se FN não estiver ativo, retorna NONE (early return)
-    if (!fn_active) {
-        return KEYMOD_NONE;
-    }
-
-    // Obtém modificadores efetivos no momento do evento
-    uint8_t effective_mods = get_mods() | get_weak_mods() | get_oneshot_mods();
-
-    // Se o keycode for um modificador e estiver sendo pressionado, adiciona aos mods efetivos
-    // (porque get_mods() ainda não foi atualizado com este modificador)
-    if (keycode_valid && IS_MODIFIER_KEYCODE(keycode) && record->event.pressed) {
-        effective_mods |= MOD_BIT(keycode);
-    }
-
-    // Verifica modificadores em ordem de prioridade: RCTL > RALT > RSFT
-    if (effective_mods & MOD_BIT(KC_RCTL)) {
-        return KEYMOD_FN_RCTL;
-    }
-    
-    if (effective_mods & MOD_BIT(KC_RALT)) {
-        return KEYMOD_FN_RALT;
-    }
-    
-    if (effective_mods & MOD_BIT(KC_RSFT)) {
-        return KEYMOD_FN_RSFT;
-    }
-
-    // Apenas FN está ativo (sem RCTL, RALT ou RSFT)
-    return KEYMOD_FN;
-}
 
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -122,54 +56,43 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     uint8_t col = record->event.key.col;
     
     // Resolve o handler associado à posição através do grid
-    // Todos os módulos (profiles, persistence, custom, numlock) registram suas funções aqui
     key_function_t handler;
-    keymod_t supported_keymod;
-    if (!behavior_resolve_handler_by_position(row, col, &handler, &supported_keymod)) {
+    keymod_t accepted_keymods;
+    if (!behavior_resolve_handler_by_position(row, col, &handler, &accepted_keymods)) {
         return true; // Não há handler associado, passa o evento adiante
     }
     
-    // Verifica se é tecla custom (precisa de keymod para associação mesmo com supported_keymod == KEYMOD_NONE)
+    // Obtém entry do grid para verificar tipo
     base_t* entry = kind_get_grid_entry(row, col);
     if (entry == NULL) {
         return true; // Entry não encontrado, passa adiante
     }
     
-    bool is_custom = (entry->kind == KIND_CUSTOM);
-    bool is_position = (entry->kind == KIND_POSITION);
-    
-    // Calcula keymod - SEMPRE calcula para custom e position_t (igual ao custom)
+    // Calcula keymod apenas se necessário (custom ou position)
+    // Modifiers e others não precisam de keymod, apenas passam o evento
     keymod_t keymod = KEYMOD_NONE;
-    if (is_custom || is_position) {
-        keymod = get_keymod(record);
+    kind_t entry_kind = entry->kind;
+    
+    if (entry_kind == KIND_CUSTOM || entry_kind == KIND_PROFILE || entry_kind == KIND_NUMLOCK || entry_kind == KIND_PERSISTENCE) {
+        keymod = keymod_get(record);
         
-        // Para position_t, usa a mesma lógica de custom: verifica bitwise
-        if (is_position) {
-            // Para position_t, verifica se há interseção entre keymod e supported_keymod
-            // keymod é um enum de flags, pode conter múltiplos bits
-            // Usa a mesma lógica de custom
-            if (supported_keymod != 0) {
-                // Verifica se há algum bit em comum entre keymod e supported_keymod
-                if ((keymod & supported_keymod) == 0) {
-                    return true; // Nenhum bit em comum, keymod não está na lista de aceitos, passa adiante
-                }
-            }
-        } else if (is_custom) {
-            // Para custom, verifica se keymod contém algum dos valores aceitos
-            // supported_keymod é uma máscara de bits: cada bit indica se o valor é aceito
-            // KEYMOD_NONE=0x01, KEYMOD_FN=0x02, KEYMOD_FN_RCTL=0x04, KEYMOD_FN_RALT=0x08
-            // keymod pode conter múltiplos bits setados (combinação de flags)
-            // Verifica se há interseção entre keymod e supported_keymod
-            if (supported_keymod != 0) {
-                // Verifica se há algum bit em comum entre keymod e supported_keymod
-                if ((keymod & supported_keymod) == 0) {
-                    return true; // Nenhum bit em comum, keymod não está na lista de aceitos, passa adiante
-                }
-            }
+        // Verifica se keymod é aceito
+        bool keymod_accepted;
+        if (entry_kind == KIND_PROFILE || entry_kind == KIND_NUMLOCK || entry_kind == KIND_PERSISTENCE) {
+            keymod_accepted = keymod_is_accepted_for_position(keymod, accepted_keymods);
+        } else {
+            keymod_accepted = keymod_is_accepted_for_custom(keymod, accepted_keymods);
         }
+        
+        if (!keymod_accepted) {
+            return true; // keymod não aceito, passa adiante
+        }
+    } else if (entry_kind == KIND_MODIFIER || entry_kind == KIND_OTHER || entry_kind == KIND_DISABLED || entry_kind == KIND_BOLD) {
+        // Modifiers, others, disabled e bold não precisam de keymod, sempre passa KEYMOD_NONE
+        keymod = KEYMOD_NONE;
     }
     
-    // Chama o handler registrado, passando record e keymod (não keycode)
+    // Chama o handler registrado, passando record e keymod
     return handler(record, keymod);
 }
 
@@ -191,9 +114,12 @@ void keyboard_pre_init_user(void) {
     // Registra hooks que não dependem de inicialização completa
     hold_init_early_hooks();
     toggle_init_early_hooks();
+    unassociated_init_early_hooks();
     numlock_init_early_hooks();
     profiles_init_early_hooks();
     persistence_init_early_hooks();
+    disabled_init_early_hooks();
+    bold_init_early_hooks();
 }
 
 // Hook keyboard_post_init_user: inicialização dos módulos
@@ -207,29 +133,37 @@ void keyboard_post_init_user(void) {
     
     // Inicializa modifiers primeiro (outros módulos podem registrar callbacks)
     modifiers_init();
+    others_init();
     
     // Registra hooks de todos os módulos (exceto eeconfig_init, já registrados em keyboard_pre_init_user)
     modifiers_init_hooks();
+    others_init_hooks();
     custom_init_hooks();
     hold_init_hooks();
     toggle_init_hooks();
+    unassociated_init_hooks();
     numlock_init_hooks();
     profiles_init_hooks();
     persistence_init_hooks();
+    disabled_init_hooks();
+    bold_init_hooks();
+    
+    // Registra callbacks de notificação de FN dos submódulos
+    // Os submódulos não conhecem modifiers, apenas expõem seus callbacks
+    modifiers_register_fn_callback((modifiers_fn_state_callback_t)hold_get_fn_callback());
+    modifiers_register_fn_callback((modifiers_fn_state_callback_t)toggle_get_fn_callback());
+    modifiers_register_fn_callback((modifiers_fn_state_callback_t)unassociated_get_fn_callback());
+    
+    // Notifica estado inicial de FN aos submódulos
+    // Isso garante sincronização do estado inicial
+    // O estado será atualizado no primeiro matrix_scan_user
+    // Por enquanto, notifica KEYMOD_NONE (estado inicial)
+    hold_get_fn_callback()(KEYMOD_NONE);
+    toggle_get_fn_callback()(KEYMOD_NONE);
+    unassociated_get_fn_callback()(KEYMOD_NONE);
     
     // Dispara inicialização de todos os módulos registrados
     hooks_keyboard_post_init_dispatch();
-}
-
-// Função auxiliar para verificar se um profile está vazio
-static bool profile_is_empty(profile_t* profile) {
-    if (!profile) return true;
-    for (uint8_t i = 0; i < PROFILES_KEYS_COUNT; i++) {
-        if (profile->behaviors[i] != KEY_CUSTOM_DISABLED) {
-            return false;
-        }
-    }
-    return true;
 }
 
 // Hook matrix_scan_user: scans periódicos dos módulos
@@ -241,21 +175,14 @@ void matrix_scan_user(void) {
 // Hook rgb_matrix_indicators_user: indicadores RGB dos módulos
 // Quarto hook executado - chamado periodicamente durante renderização RGB
 bool rgb_matrix_indicators_user(void) {
-    // Verifica se o profile não está vazio
-    settings_t* working = settings_get_working();
-    profile_t* active_profile = profiles_get_active_profile(&working->profiles);
-    bool profile_empty = (active_profile == NULL) || profile_is_empty(active_profile);
-    
-    if (!profile_empty) {
-        // Profile não está vazio: desliga todos os LEDs primeiro
-        // Isso sobrescreve o padrão RGB que foi renderizado antes
-        rgb_matrix_set_color_all(0, 0, 0);
+    // Se o profile ativo estiver vazio, não renderiza cores dos módulos
+    // Isso permite que as cores padrão do teclado sejam exibidas
+    if (profile_is_active_profile_empty()) {
+        return true;
     }
     
-    // Chama todos os indicadores registrados (sempre, independente do estado do profile)
-    // Indicadores de numlock, end e profiles devem funcionar sempre
-    // Eles serão chamados DEPOIS de desligar tudo (se profile não estiver vazio)
-    // ou diretamente (se profile estiver vazio)
+    // Apenas sobrescreve LEDs com valores estipulados pelos módulos
+    // LEDs sem valores estipulados mantêm as cores padrão do sistema
     hooks_rgb_indicators_dispatch();
     
     return true;

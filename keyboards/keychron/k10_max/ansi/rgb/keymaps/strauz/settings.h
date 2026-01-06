@@ -3,7 +3,7 @@
 
 #include QMK_KEYBOARD_H
 
-#include "profiles.h"
+#include "profile.h"
 
 // ===== Defines =====
 
@@ -11,8 +11,8 @@
 #define SETTINGS_VERSION 1
 
 // Número máximo de callbacks para mudança de profile
-// Atualmente apenas custom se registra, mas permite espaço para futuros módulos
-#define SETTINGS_MAX_PROFILE_CHANGED_CALLBACKS 4
+// Registros atuais: custom, profiles (2)
+#define SETTINGS_MAX_PROFILE_CHANGED_CALLBACKS 2
 
 // ===== Types/structs =====
 
@@ -47,7 +47,7 @@ settings_t* settings_get_persisted(void);
 bool settings_register_profile_changed_callback(settings_profile_changed_callback_t callback);
 
 // Define o profile ativo e notifica todos os callbacks registrados
-// Esta função deve ser usada em vez de profiles_set_active_profile diretamente
+// Esta função deve ser usada em vez de profile_set_active_profile diretamente
 void settings_set_active_profile(uint8_t index);
 
 #endif // SETTINGS_H

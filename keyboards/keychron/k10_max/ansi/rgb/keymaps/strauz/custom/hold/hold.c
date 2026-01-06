@@ -3,13 +3,15 @@
 #include "../../behavior.h"
 #include "../../kind.h"
 #include "../../customs.h"  // Para customs_t
-#include "../../profiles.h"
+#include "../../profile.h"
 #include "../../settings.h"
 #include "../custom.h"
 #include "../../hooks.h"
 #include "../../keymod.h"  // Para keymod_t
+#include "../../colors.h"  // Para cores centralizadas
 #include "../../pulse.h"
 #include <lib/lib8tion/lib8tion.h> // Para scale8
+#include <string.h>  // Para memset
 
 // Declarações forward
 bool hold_process_record_user(keyrecord_t *record, keymod_t keymod);
@@ -17,137 +19,120 @@ void hold_key_add_callback(uint8_t row, uint8_t col, customs_t behavior);
 void hold_key_remove_callback(uint8_t row, uint8_t col, customs_t behavior);
 
 // ===== Variáveis Globais =====
-hold_key_t hold_keys[] = {
-    {0, 3, 1, NO_LED, DISABLED, 0, 0}, {0, 4, 6, NO_LED, DISABLED, 0, 1},
-    {0, 4, 4, NO_LED, DISABLED, 0, 2}, {0, 3, 3, NO_LED, DISABLED, 0, 3},
-    {0, 2, 3, NO_LED, DISABLED, 0, 4}, {0, 3, 4, NO_LED, DISABLED, 0, 5},
-    {0, 3, 5, NO_LED, DISABLED, 0, 6}, {0, 3, 6, NO_LED, DISABLED, 0, 7},
-    {0, 2, 8, NO_LED, DISABLED, 0, 8}, {0, 3, 7, NO_LED, DISABLED, 0, 9},
-    {0, 3, 8, NO_LED, DISABLED, 0, 10}, {0, 3, 9, NO_LED, DISABLED, 0, 11},
-    {0, 4, 8, NO_LED, DISABLED, 0, 12}, {0, 4, 7, NO_LED, DISABLED, 0, 13},
-    {0, 2, 9, NO_LED, DISABLED, 0, 14}, {0, 2, 10, NO_LED, DISABLED, 0, 15},
-    {0, 2, 1, NO_LED, DISABLED, 0, 16}, {0, 2, 4, NO_LED, DISABLED, 0, 17},
-    {0, 3, 2, NO_LED, DISABLED, 0, 18}, {0, 2, 5, NO_LED, DISABLED, 0, 19},
-    {0, 2, 7, NO_LED, DISABLED, 0, 20}, {0, 4, 5, NO_LED, DISABLED, 0, 21},
-    {0, 2, 2, NO_LED, DISABLED, 0, 22}, {0, 4, 3, NO_LED, DISABLED, 0, 23},
-    {0, 2, 6, NO_LED, DISABLED, 0, 24}, {0, 4, 2, NO_LED, DISABLED, 0, 25},
-    {0, 1, 1, NO_LED, DISABLED, 0, 26}, {0, 1, 2, NO_LED, DISABLED, 0, 27},
-    {0, 1, 3, NO_LED, DISABLED, 0, 28}, {0, 1, 4, NO_LED, DISABLED, 0, 29},
-    {0, 1, 5, NO_LED, DISABLED, 0, 30}, {0, 1, 6, NO_LED, DISABLED, 0, 31},
-    {0, 1, 7, NO_LED, DISABLED, 0, 32}, {0, 1, 8, NO_LED, DISABLED, 0, 33},
-    {0, 1, 9, NO_LED, DISABLED, 0, 34}, {0, 1, 10, NO_LED, DISABLED, 0, 35},
-    {0, 5, 6, NO_LED, DISABLED, 0, 36}, {0, 1, 11, NO_LED, DISABLED, 0, 37},
-    {0, 1, 12, NO_LED, DISABLED, 0, 38}, {0, 2, 11, NO_LED, DISABLED, 0, 39},
-    {0, 2, 12, NO_LED, DISABLED, 0, 40}, {0, 2, 13, NO_LED, DISABLED, 0, 41},
-    {0, 3, 10, NO_LED, DISABLED, 0, 42}, {0, 3, 11, NO_LED, DISABLED, 0, 43},
-    {0, 1, 0, NO_LED, DISABLED, 0, 44}, {0, 4, 9, NO_LED, DISABLED, 0, 45},
-    {0, 4, 10, NO_LED, DISABLED, 0, 46}, {0, 4, 11, NO_LED, DISABLED, 0, 47},
-};
 
 bool hold_profile_mode = true;
 uint8_t hold_enabled_keys_bitfield[6] = {0};
 
+// ===== Estado de FN =====
+
+// Rastreia keymod atual (para mudar cor das teclas em WAITING)
+static keymod_t hold_fn_keymod = KEYMOD_NONE;
+
 // ===== Funções Auxiliares =====
-static bool is_key_enabled(hold_key_t *key) {
-    if (!key) return false;
+static bool is_key_enabled(custom_t *custom) {
+    if (!custom) return false;
     // Verifica diretamente o behavior atual em vez de depender do bitfield
-    customs_t behavior = custom_get_behavior_by_position(key->row, key->col);
+    customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
     return (behavior == KEY_CUSTOM_HOLD);
 }
 
 static bool profiles_is_empty(profile_t* profile) {
     if (!profile) return true;
     for (uint8_t i = 0; i < PROFILES_KEYS_COUNT; i++) {
-        if (profile->behaviors[i] != KEY_CUSTOM_DISABLED) {
+        if (profile->behaviors[i] != KEY_CUSTOM_UNASSOCIATED) {
             return false;
         }
     }
     return true;
 }
 
+// Callback para notificar mudança de estado de FN
+static void hold_fn_state_callback(keymod_t keymod) {
+    hold_fn_keymod = keymod;
+}
+
+// Função pública para obter o callback de notificação de FN
+hold_fn_state_callback_t hold_get_fn_callback(void) {
+    return hold_fn_state_callback;
+}
+
 // Callback para notificar inclusão de tecla no controle de hold
 void hold_key_add_callback(uint8_t row, uint8_t col, customs_t behavior) {
-    hold_key_t* key = hold_get_key_by_position(row, col);
-    if (key) {
-        // Garante que led_index está preenchido (caso não tenha sido inicializado)
-        if (key->led_index == NO_LED) {
-            custom_t* custom = kind_get_custom(row, col);
-            if (custom) {
-                key->led_index = custom->led_index;
-            }
-        }
+    custom_t* custom = hold_get_key_by_position(row, col);
+    if (custom) {
         // Inicializa estado apenas para esta tecla
-        key->state = WAITING;
+        custom->state = WAITING;
         // Atualiza o LED imediatamente após a associação
-        // O LED ficará cinza pulsante (WAITING) indicando que está aguardando
+        // O LED ficará branco pulsante (WAITING) ou azul pulsante se FN pressionado
         // A pulsação será aplicada em update_indicators()
-        if (key->led_index != NO_LED) {
-            // Inicializa com cinza médio, a pulsação será aplicada no próximo update_indicators
-            rgb_matrix_set_color(key->led_index, 128, 128, 128);
+        // Inicializa com cor apropriada baseada no estado de FN
+        uint8_t brightness = calculate_pulse_brightness();
+        if (keymod_is_only_value(hold_fn_keymod, KEYMOD_FN_ONLY)) {
+            // Apenas FN está pressionada: azul pulsante
+            color_rgb_t blue = color_apply_brightness(COLOR_BLUE, brightness);
+            rgb_matrix_set_color(custom->led_index, blue.r, blue.g, blue.b);
+        } else {
+            // FN não está pressionada: branco pulsante
+            color_rgb_t white = color_apply_brightness(COLOR_WHITE, brightness);
+            rgb_matrix_set_color(custom->led_index, white.r, white.g, white.b);
         }
     }
 }
 
 // Callback para notificar remoção de tecla do controle de hold
 void hold_key_remove_callback(uint8_t row, uint8_t col, customs_t behavior) {
-    hold_key_t* key = hold_get_key_by_position(row, col);
-    if (key) {
-        // Limpa estado e apaga o LED
-        key->state = DISABLED;
-        if (key->led_index != NO_LED) {
-            rgb_matrix_set_color(key->led_index, RGB_OFF);
-            key->led_index = NO_LED; // Marca como não associada
-        }
+    custom_t* custom = hold_get_key_by_position(row, col);
+    if (custom) {
+        // Limpa estado - a tecla será recolorida quando associada a outro módulo
+        custom->state = DISABLED;
     }
 }
 
 // ===== Funções de Estado =====
-hold_key_t* hold_get_key_by_position(uint8_t row, uint8_t col) {
+custom_t* hold_get_key_by_position(uint8_t row, uint8_t col) {
     custom_t* custom = kind_get_custom(row, col);
     if (custom == NULL) return NULL;
-    return &hold_keys[custom->custom_index];
+    // Verifica se o behavior é HOLD
+    customs_t behavior = custom_get_behavior_by_position(row, col);
+    if (behavior != KEY_CUSTOM_HOLD) return NULL;
+    return custom;
 }
 
-hold_key_t* hold_get_key_by_index(uint8_t behavior_index) {
-    if (behavior_index >= CUSTOM_KEYS_COUNT) return NULL;
-    return &hold_keys[behavior_index];
-}
-
-void init_led_indices(void) {
-    // NÃO preenche led_index aqui - led_index só deve ser preenchido quando a tecla é associada
-    // via hold_key_add_callback. Isso previne que todas as teclas tenham LEDs ligados.
-    for (uint8_t i = 0; i < CUSTOM_KEYS_COUNT; i++) {
-        custom_t* custom = kind_get_custom_by_index(i);
-        if (custom) {
-            hold_keys[i].row = custom->row;
-            hold_keys[i].col = custom->col;
-            hold_keys[i].keycode = custom->keycode;
-            // led_index permanece NO_LED até que a tecla seja associada
-            hold_keys[i].led_index = NO_LED;
-        }
-    }
+custom_t* hold_get_key_by_index(uint8_t persist_index) {
+    custom_t* custom = kind_get_custom_by_index(persist_index);
+    if (custom == NULL) return NULL;
+    // Verifica se o behavior é HOLD
+    customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
+    if (behavior != KEY_CUSTOM_HOLD) return NULL;
+    return custom;
 }
 
 void update_hold_states(void) {
     uint32_t now = timer_read32();
-    for (uint8_t i = 0; i < CUSTOM_KEYS_COUNT; i++) {
-        hold_key_t *key = &hold_keys[i];
-        if (key->state == DISABLED) continue;
-        switch (key->state) {
+    for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
+        custom_t* custom = kind_get_custom_by_index(i);
+        if (custom == NULL) continue;
+        
+        // Verifica se o behavior é HOLD
+        customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
+        if (behavior != KEY_CUSTOM_HOLD) continue;
+        
+        if (custom->state == DISABLED) continue;
+        switch (custom->state) {
             case PRESSING: {
-                if (timer_elapsed32(key->timer) >= CUSTOM_DELAY) {
-                    key->state = FIRING; key->timer = now; tap_code(key->keycode);
+                if (timer_elapsed32(custom->timer) >= CUSTOM_DELAY) {
+                    custom->state = FIRING; custom->timer = now; tap_code(custom->keycode);
                 }
                 break;
             }
             case FIRING: {
-                if (timer_elapsed32(key->timer) >= CUSTOM_INTERVAL) {
-                    tap_code(key->keycode); key->timer = now;
+                if (timer_elapsed32(custom->timer) >= CUSTOM_INTERVAL) {
+                    tap_code(custom->keycode); custom->timer = now;
                 }
                 break;
             }
             case RESTING: {
-                if (timer_elapsed32(key->timer) >= LED_DEACTIVATE_TIME) key->state = WAITING;
+                if (timer_elapsed32(custom->timer) >= LED_DEACTIVATE_TIME) custom->state = WAITING;
                 break;
             }
             default: break;
@@ -155,32 +140,45 @@ void update_hold_states(void) {
     }
 }
 
-void activate_hold_key(hold_key_t *key) {
+void activate_hold_key(custom_t *custom) {
+    if (!custom) return;
     uint32_t now = timer_read32();
-    key->state = PRESSING; key->timer = now;
+    custom->state = PRESSING; custom->timer = now;
 }
 
-void deactivate_hold_key(hold_key_t *key) {
+void deactivate_hold_key(custom_t *custom) {
+    if (!custom) return;
     uint32_t now = timer_read32();
-    if (key->state == FIRING) { key->state = RESTING; key->timer = now; return; }
-    if (key->state == PRESSING) { key->state = WAITING; return; }
+    if (custom->state == FIRING) { custom->state = RESTING; custom->timer = now; return; }
+    if (custom->state == PRESSING) { custom->state = WAITING; return; }
 }
 
 void deactivate_all_hold(void) {
     uint32_t now = timer_read32();
-    for (uint8_t i = 0; i < CUSTOM_KEYS_COUNT; i++)
-        if (hold_keys[i].state == FIRING) { hold_keys[i].state = RESTING; hold_keys[i].timer = now; }
+    for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
+        custom_t* custom = kind_get_custom_by_index(i);
+        if (custom == NULL) continue;
+        
+        // Verifica se o behavior é HOLD
+        customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
+        if (behavior != KEY_CUSTOM_HOLD) continue;
+        
+        if (custom->state == FIRING) { custom->state = RESTING; custom->timer = now; }
+    }
 }
 
 void sync_enabled_states(void) {
-    for (uint8_t i = 0; i < CUSTOM_KEYS_COUNT; i++) {
-        bool is_enabled = is_key_enabled(&hold_keys[i]);
+    for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
+        custom_t* custom = kind_get_custom_by_index(i);
+        if (custom == NULL) continue;
+        
+        bool is_enabled = is_key_enabled(custom);
         if (!is_enabled) {
-            hold_keys[i].state = DISABLED;
+            custom->state = DISABLED;
         } else {
             // Se está habilitado e estava desabilitado, inicializa como WAITING
-            if (hold_keys[i].state == DISABLED) {
-                hold_keys[i].state = WAITING;
+            if (custom->state == DISABLED) {
+                custom->state = WAITING;
             }
             // Se já estava em outro estado (WAITING, PRESSING, etc), mantém o estado
         }
@@ -191,30 +189,49 @@ void sync_enabled_states(void) {
 void update_indicators(void) {
     // Atualiza apenas os LEDs das teclas que estão associadas a HOLD
     // Verifica diretamente o behavior atual para garantir que apenas teclas realmente associadas sejam atualizadas
-    for (uint8_t i = 0; i < CUSTOM_KEYS_COUNT; i++) {
-        hold_key_t *key = &hold_keys[i];
+    for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
+        custom_t* custom = kind_get_custom_by_index(i);
+        if (custom == NULL) continue;
+        
         // Verifica se esta tecla está realmente associada a HOLD
-        customs_t behavior = custom_get_behavior_by_position(key->row, key->col);
-        if (behavior == KEY_CUSTOM_HOLD && key->led_index != NO_LED) {
-            // Esta tecla está associada a HOLD e tem led_index válido
+        customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
+        if (behavior == KEY_CUSTOM_HOLD) {
+            // Esta tecla está associada a HOLD
             // Atualiza LED baseado no estado
-            if (key->state != DISABLED) {
-            switch (key->state) {
-                case WAITING: {
-                    // Estado inicial: cinza pulsante
-                    uint8_t brightness = calculate_pulse_brightness();
-                    uint8_t gray = scale8(brightness, 128);  // Escala para cinza (128 = 50% de 255)
-                    rgb_matrix_set_color(key->led_index, gray, gray, gray);
-                    break;
-                }
-                case PRESSING: rgb_matrix_set_color(key->led_index, 0, 255, 0); break;
-                case FIRING: rgb_matrix_set_color(key->led_index, 255, 0, 0); break;
-                case RESTING: rgb_matrix_set_color(key->led_index, 255, 255, 0); break;
-                case DISABLED: rgb_matrix_set_color(key->led_index, RGB_OFF); break;
-                }
+            if (custom->state != DISABLED) {
+                switch (custom->state) {
+                        case WAITING: {
+                            // Estado inicial: azul pulsante
+                            uint8_t brightness = calculate_pulse_brightness();
+                            color_rgb_t blue = color_apply_brightness(COLOR_BLUE, brightness);
+                            rgb_matrix_set_color(custom->led_index, blue.r, blue.g, blue.b);
+                            break;
+                        }
+                        case PRESSING: {
+                            // Tecla está pressionada: verde contínuo
+                            color_rgb_t green = color_get_rgb(COLOR_GREEN);
+                            rgb_matrix_set_color(custom->led_index, green.r, green.g, green.b);
+                            break;
+                        }
+                        case FIRING: {
+                            // Disparo: vermelho contínuo
+                            color_rgb_t red = color_get_rgb(COLOR_RED);
+                            rgb_matrix_set_color(custom->led_index, red.r, red.g, red.b);
+                            break;
+                        }
+                        case RESTING: {
+                            // Após soltar: amarelo contínuo por um tempo
+                            color_rgb_t yellow = color_get_rgb(COLOR_YELLOW);
+                            rgb_matrix_set_color(custom->led_index, yellow.r, yellow.g, yellow.b);
+                            break;
+                        }
+                        case DISABLED: {
+                            // Estado DISABLED - não renderiza, será recolorido quando associado a outro módulo
+                            break;
+                        }
+                    }
             } else {
-                // Estado é DISABLED, apaga o LED
-                rgb_matrix_set_color(key->led_index, RGB_OFF);
+                // Estado é DISABLED - não renderiza, será recolorido quando associado a outro módulo
             }
         }
     }
@@ -222,7 +239,7 @@ void update_indicators(void) {
 
 bool is_profile_mode_active(void) {
     settings_t* working = settings_get_working();
-    profile_t* active_profile = profiles_get_active_profile(&working->profiles);
+    profile_t* active_profile = profile_get_active_profile(&working->profiles);
     if (!active_profile || profiles_is_empty(active_profile)) {
         return false;
     }
@@ -231,7 +248,12 @@ bool is_profile_mode_active(void) {
 
 void reset_all_enabled_keys(void) {
     memset(hold_enabled_keys_bitfield, 0, sizeof(hold_enabled_keys_bitfield));
-    for (uint8_t i = 0; i < CUSTOM_KEYS_COUNT; i++) hold_keys[i].state = DISABLED;
+    for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
+        custom_t* custom = kind_get_custom_by_index(i);
+        if (custom) {
+            custom->state = DISABLED;
+        }
+    }
 }
 
 // ===== Funções de Hook QMK =====
@@ -243,23 +265,16 @@ bool hold_process_record_user(keyrecord_t *record, keymod_t keymod) {
     uint8_t col = record->event.key.col;
     
     // Busca a tecla custom por posição (O(1))
-    hold_key_t *key = hold_get_key_by_position(row, col);
+    custom_t* custom = hold_get_key_by_position(row, col);
     
-    if (key) {
+    if (custom) {
         // Verifica se o behavior é HOLD e está habilitado usando custom
         customs_t behavior = custom_get_behavior_by_position(row, col);
-        if (behavior == KEY_CUSTOM_HOLD && key->state != DISABLED) {
+        if (behavior == KEY_CUSTOM_HOLD && custom->state != DISABLED) {
             if (record->event.pressed) {
-                // Space tem tratamento especial: desativa todas as outras antes
-                // Desativa todas as teclas hold e toggle que estão ativas
-                if (row == 5 && col == 6) {  // KC_SPC está em (5, 6)
-                    deactivate_all_hold();
-                    extern void toggle_deactivate_all(void);
-                    toggle_deactivate_all();
-                }
-                activate_hold_key(key);
+                activate_hold_key(custom);
             } else {
-                deactivate_hold_key(key);
+                deactivate_hold_key(custom);
             }
             return true;
         }
@@ -290,18 +305,23 @@ static void hold_keyboard_post_init_user(void) {
     };
     custom_register_callbacks(KEY_CUSTOM_HOLD, callbacks);
     
+    // Estado de FN será inicializado como KEYMOD_NONE
+    // Será atualizado via notificação quando FN for pressionado
+    hold_fn_keymod = KEYMOD_NONE;
+    
     // Inicializa outras coisas...
-    init_led_indices();
     sync_enabled_states();
     
     // Força chamada de add_callback para teclas que já têm o behavior no profile ativo
     // Isso garante que os LEDs sejam ligados na inicialização
-    for (uint8_t i = 0; i < CUSTOM_KEYS_COUNT; i++) {
-        hold_key_t *key = &hold_keys[i];
-        customs_t behavior = custom_get_behavior_by_position(key->row, key->col);
+    for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
+        custom_t* custom = kind_get_custom_by_index(i);
+        if (custom == NULL) continue;
+        
+        customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
         if (behavior == KEY_CUSTOM_HOLD) {
             // Chama add_callback para inicializar LED e estado
-            hold_key_add_callback(key->row, key->col, KEY_CUSTOM_HOLD);
+            hold_key_add_callback(custom->row, custom->col, KEY_CUSTOM_HOLD);
         }
     }
 }
@@ -320,4 +340,3 @@ void hold_init_early_hooks(void) {
 void hold_init_hooks(void) {
     hooks_keyboard_post_init_register(hold_keyboard_post_init_user);
 }
-
