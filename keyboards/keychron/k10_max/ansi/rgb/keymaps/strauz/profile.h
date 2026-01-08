@@ -2,7 +2,7 @@
 #define PROFILE_H
 
 #include QMK_KEYBOARD_H
-#include "customs.h"  // Para customs_t
+#include "custom_behaviors.h"  // Para custom_behaviors_t
 
 // ===== Defines =====
 
@@ -17,7 +17,7 @@
 typedef struct {
     bool active;                                  // Se é o profile ativo
     uint8_t index;                                // Índice do profile (0-9)
-    customs_t behaviors[PROFILE_KEYS_COUNT];  // Comportamentos das teclas
+    custom_behaviors_t behaviors[PROFILE_KEYS_COUNT];  // Comportamentos das teclas
 } profile_t;
 
 // Conjunto de profiles

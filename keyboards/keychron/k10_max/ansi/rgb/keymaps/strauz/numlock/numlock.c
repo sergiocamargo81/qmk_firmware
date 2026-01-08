@@ -2,13 +2,13 @@
 
 #include "../behavior.h"
 #include "../kind.h"
-#include "../hooks.h"
+#include "../event_bus.h"  // Para Event Bus
 #include "../keymod.h"  // Para keymod_t
 #include "../colors.h"  // Para cores centralizadas
 #include "../pulse.h"
 
 // Declaração forward
-bool numlock_process_record_user(keyrecord_t *record, keymod_t keymod);
+bool numlock_process_key(base_key_t* key, bool pressed, keymod_t keymod);
 
 // ===== Variáveis Globais =====
 numlock_t* numlock_position = NULL;
@@ -16,11 +16,10 @@ numlock_t* numlock_position = NULL;
 // ===== Funções de Registro =====
 
 // Registra a posição de KC_NUM na matriz de behavior
-// Usa posição fixa: row=1, col=17
 void numlock_register_position(void) {
-    numlock_t* pos = kind_get_numlock(1, 17);
+    numlock_t* pos = kind_get_numlock_key();
     if (pos) {
-        behavior_register_position_function(pos->row, pos->col, numlock_process_record_user);
+        behavior_register_position_function(pos->row, pos->col, numlock_process_key);
     }
 }
 
@@ -35,16 +34,16 @@ static bool numlock_is_on(void) {
 // ===== Funções de Hook QMK =====
 
 // Processa KC_NUM (baseado em posição, não keycode)
-bool numlock_process_record_user(keyrecord_t *record, keymod_t keymod) {
-    if (!record->event.pressed) return true;
+bool numlock_process_key(base_key_t* key, bool pressed, keymod_t keymod) {
+    if (!pressed) return true;
 
-    // Obtém posição (row, col)
-    uint8_t row = record->event.key.row;
-    uint8_t col = record->event.key.col;
+    if (key == NULL || key->kind != KIND_NUMLOCK) {
+        return true;
+    }
     
-    // Verifica se a posição corresponde a KC_NUM
-    numlock_t* pos = kind_get_numlock(row, col);
-    if (pos && pos->keycode == KC_NUM) {
+    // Verifica se a key corresponde a KC_NUM
+    numlock_t* pos = (numlock_t*)key;
+    if (pos->keycode == KC_NUM) {
         // Envia KC_NUM ao SO (dispara toggle real)
         tap_code(KC_NUM);
         // Não precisa sincronizar - o estado será verificado diretamente no próximo render
@@ -55,9 +54,10 @@ bool numlock_process_record_user(keyrecord_t *record, keymod_t keymod) {
 }
 
 // Hook rgb_matrix_indicators_user
-static bool numlock_rgb_matrix_indicators_user(void) {
+static void numlock_rgb_matrix_indicators_user(const event_t* event) {
+    if (event->type != EVENT_RGB_INDICATORS) return;
     // Se position não foi inicializado, retorna
-    if (numlock_position == NULL) return true;
+    if (numlock_position == NULL) return;
 
     // Verifica o estado diretamente do host (sempre atualizado)
     // Isso evita problemas de sincronização durante a inicialização
@@ -71,17 +71,16 @@ static bool numlock_rgb_matrix_indicators_user(void) {
         color_rgb_t red = color_apply_brightness(COLOR_RED, brightness);
         rgb_matrix_set_color(numlock_position->led_index, red.r, red.g, red.b);
     }
-    
-    return true;
 }
 
 // Hook keyboard_post_init_user
-static void numlock_keyboard_post_init_user(void) {
+static void numlock_keyboard_post_init_user(const event_t* event) {
+    if (event->type != EVENT_KEYBOARD_POST_INIT) return;
+    // Obtém a tecla numlock diretamente do pool
+    numlock_position = kind_get_numlock_key();
+    
     // Registra a posição de KC_NUM
     numlock_register_position();
-    
-    // Usa posição fixa: row=1, col=17
-    numlock_position = kind_get_numlock(1, 17);
 
     // Não precisa sincronizar estado inicial - será verificado diretamente no render
     // O rgb_matrix_indicators_user será chamado automaticamente e verificará o estado atual
@@ -92,12 +91,12 @@ static void numlock_keyboard_post_init_user(void) {
 // Registra hooks que podem ser registrados antes da inicialização completa
 // Chamado em keyboard_pre_init_user
 void numlock_init_early_hooks(void) {
-    hooks_rgb_indicators_register(numlock_rgb_matrix_indicators_user);
+    event_bus_subscribe_rgb_indicators(numlock_rgb_matrix_indicators_user);
 }
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void numlock_init_hooks(void) {
-    hooks_keyboard_post_init_register(numlock_keyboard_post_init_user);
+    event_bus_subscribe(EVENT_KEYBOARD_POST_INIT, numlock_keyboard_post_init_user);
 }
 

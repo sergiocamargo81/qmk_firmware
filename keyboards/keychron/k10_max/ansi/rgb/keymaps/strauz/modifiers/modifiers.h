@@ -3,6 +3,7 @@
 
 #include QMK_KEYBOARD_H
 #include "../keymod.h"  // Para keymod_t
+#include "../kind.h"    // Para base_key_t
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -12,19 +13,9 @@
 
 // ===== Tipos =====
 
-// Tipo de callback para notificar mudança de estado de FN
-// keymod: keymod_t ativo (KEYMOD_FN_ONLY, KEYMOD_FN_RCTL, KEYMOD_FN_RALT, KEYMOD_FN_RSFT) ou KEYMOD_NONE quando solto
-typedef void (*modifiers_fn_state_callback_t)(keymod_t keymod);
-
 // ===== API Pública =====
-
-// Registra um callback para ser notificado quando FN é pressionada/solta
-// Retorna true se sucesso, false se limite atingido ou callback já registrado
-bool modifiers_register_fn_callback(modifiers_fn_state_callback_t callback);
-
-// Remove um callback registrado
-// Retorna true se encontrado e removido, false caso contrário
-bool modifiers_unregister_fn_callback(modifiers_fn_state_callback_t callback);
+// Sistema de callbacks migrado para Event Bus
+// Use event_bus_subscribe_fn_state_changed() em vez de modifiers_register_fn_callback()
 
 // Consulta se FN está atualmente pressionada
 // Útil para módulos que precisam verificar estado sem callback
@@ -42,6 +33,6 @@ void modifiers_init_hooks(void);
 
 // Processa eventos de modifiers (FN, RSHIFT, RALT, RCTRL)
 // Retorna false se consumiu o evento, true caso contrário
-bool modifiers_process_record_user(keyrecord_t *record, keymod_t keymod);
+bool modifiers_process_key(base_key_t* key, bool pressed, keymod_t keymod);
 
 #endif // MODIFIERS_H

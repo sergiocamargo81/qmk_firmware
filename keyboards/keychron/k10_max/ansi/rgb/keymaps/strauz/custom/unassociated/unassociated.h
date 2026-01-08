@@ -3,8 +3,9 @@
 
 #include QMK_KEYBOARD_H
 #include "../../kind.h"  // Para custom_t
+#include "../../event_bus.h"  // Para event_handler_t
 #include "../../keymod.h"  // Para keymod_t
-#include "../../customs.h"  // Para customs_t
+#include "../../custom_behaviors.h"  // Para custom_behaviors_t
 
 // ===== Defines =====
 // Usa CUSTOM_COUNT de kind.h
@@ -16,7 +17,7 @@ enum {
     UNASSOCIATED_PRESSED
 };
 
-// Usa custom_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, supported_keymod, persist_index, function)
+// Usa custom_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, accepted_keymods, persist_index, process_key)
 // Campos modificáveis: state (uint8_t)
 
 // ===== Funções de Estado =====
@@ -28,13 +29,9 @@ void unassociated_update_indicators(void);
 
 // ===== Callback de Notificação de FN =====
 
-// Tipo de callback para notificar mudança de estado de FN
-// Compatível com modifiers_fn_state_callback_t
-typedef void (*unassociated_fn_state_callback_t)(keymod_t keymod);
-
-// Retorna o callback de notificação de FN
-// Será chamado externamente para registrar o callback em modifiers
-unassociated_fn_state_callback_t unassociated_get_fn_callback(void);
+// Callback para notificar mudança de estado de FN via Event Bus
+// Deve ser registrado no Event Bus em keyboard_post_init_user
+void unassociated_fn_state_callback(const event_t* event);
 
 // ===== Inicialização de Hooks =====
 
@@ -43,7 +40,7 @@ unassociated_fn_state_callback_t unassociated_get_fn_callback(void);
 void unassociated_init_early_hooks(void);
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void unassociated_init_hooks(void);
 
 #endif // BEHAVIOR_CUSTOM_UNASSOCIATED_UNASSOCIATED_H

@@ -15,7 +15,7 @@ enum {
 // ===== Funções =====
 
 // Processa eventos de teclas bold
-bool bold_process_record_user(keyrecord_t *record, keymod_t keymod);
+bool bold_process_key(base_key_t* key, bool pressed, keymod_t keymod);
 
 // Atualiza indicadores RGB das teclas bold (pulsação em laranja)
 void bold_update_indicators(void);
@@ -27,7 +27,7 @@ void bold_update_indicators(void);
 void bold_init_early_hooks(void);
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void bold_init_hooks(void);
 
 #endif // BOLD_BOLD_H

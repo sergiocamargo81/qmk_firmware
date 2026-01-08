@@ -4,6 +4,7 @@
 #include QMK_KEYBOARD_H
 #include "../../kind.h"  // Para custom_t
 #include "../../settings.h"
+#include "../../event_bus.h"  // Para event_handler_t
 #include "../../keymod.h"  // Para keymod_t
 
 // ===== Defines =====
@@ -20,7 +21,7 @@ enum {
     TOGGLE_PRESSED
 };
 
-// Usa custom_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, supported_keymod, persist_index, function)
+// Usa custom_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, accepted_keymods, persist_index, process_key)
 // Campos modificáveis: state (uint8_t), timer (uint32_t)
 
 // ===== Variáveis Globais =====
@@ -36,7 +37,6 @@ void toggle_update_states(void);
 
 void toggle_activate_key(custom_t *custom);
 void toggle_deactivate_key(custom_t *custom);
-void toggle_deactivate_all(void);
 
 void toggle_sync_enabled_states(void);
 void toggle_update_indicators(void);
@@ -47,13 +47,9 @@ void toggle_reset_all_keys(void);
 
 // ===== Callback de Notificação de FN =====
 
-// Tipo de callback para notificar mudança de estado de FN
-// Compatível com modifiers_fn_state_callback_t
-typedef void (*toggle_fn_state_callback_t)(keymod_t keymod);
-
-// Retorna o callback de notificação de FN
-// Será chamado externamente para registrar o callback em modifiers
-toggle_fn_state_callback_t toggle_get_fn_callback(void);
+// Callback para notificar mudança de estado de FN via Event Bus
+// Deve ser registrado no Event Bus em keyboard_post_init_user
+void toggle_fn_state_callback(const event_t* event);
 
 // ===== Inicialização de Hooks =====
 
@@ -62,7 +58,7 @@ toggle_fn_state_callback_t toggle_get_fn_callback(void);
 void toggle_init_early_hooks(void);
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void toggle_init_hooks(void);
 
 #endif // BEHAVIOR_CUSTOM_TOGGLE_TOGGLE_H

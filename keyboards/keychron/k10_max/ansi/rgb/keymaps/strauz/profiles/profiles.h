@@ -34,7 +34,7 @@ void profiles_update_indicators(void);  // Renderiza LEDs baseado nos estados na
 void profiles_init_early_hooks(void);
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void profiles_init_hooks(void);
 
 #endif // BEHAVIOR_PROFILES_PROFILES_H

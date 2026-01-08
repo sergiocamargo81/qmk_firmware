@@ -3,50 +3,44 @@
 #include "../behavior.h"
 #include "../kind.h"
 #include "../settings.h"
-#include "../customs.h"  // Para KEY_CUSTOM_UNASSOCIATED
+#include "../custom_behaviors.h"  // Para CUSTOM_BEHAVIOR_UNASSOCIATED
 #include "../keymod.h"  // Para keymod_t
-#include "../hooks.h"
+#include "../event_bus.h"  // Para Event Bus
 #include "../colors.h"  // Para cores centralizadas
 #include "../pulse.h"
 
 // Declaração forward
-bool profiles_process_record_user(keyrecord_t *record, keymod_t keymod);
+bool profiles_process_key(base_key_t* key, bool pressed, keymod_t keymod);
 
 // ===== Array de Posições da Matrix =====
 // Array de ponteiros para profile_key_t* da matrix (P0-P9, profile_id 0-9)
+// O índice do array corresponde ao profile_id (0-9)
 static profile_key_t* profile_positions[PROFILES_COUNT] = {NULL};
 
 // ===== Funções de Registro =====
 
-void profiles_register_positions(void) {
-    // Coordenadas fixas para P0-P9 (profile_id 0-9)
-    static const struct {
-        uint8_t row;
-        uint8_t col;
-    } coords[PROFILES_COUNT] = {
-        {.row = 5, .col = 18},
-        {.row = 4, .col = 17},
-        {.row = 4, .col = 18},
-        {.row = 4, .col = 19},
-        {.row = 3, .col = 17},
-        {.row = 3, .col = 18},
-        {.row = 3, .col = 19},
-        {.row = 2, .col = 17},
-        {.row = 2, .col = 18},
-        {.row = 2, .col = 19},
-    };
+// Callback para registrar posições via iteração
+static bool profiles_register_positions_callback(profile_key_t* profile, void* user_data) {
+    (void)user_data;
+    if (profile == NULL) return true;
     
-    // Inicializa array de ponteiros e registra função para cada posição
-    for (uint8_t i = 0; i < PROFILES_COUNT; i++) {
-        uint8_t row = coords[i].row;
-        uint8_t col = coords[i].col;
-        // Obtém profile_key_t da matrix
-        profile_key_t* position = kind_get_profile(row, col);
-        if (position != NULL) {
-            profile_positions[i] = position;
-            behavior_register_position_function(row, col, profiles_process_record_user);
-        }
-    }
+    // Obtém profile_id do campo profile_index
+    uint8_t profile_id = profile->profile_index;
+    if (profile_id >= PROFILES_COUNT) return true;
+    
+    // Armazena ponteiro no array indexado por profile_id
+    profile_positions[profile_id] = profile;
+    
+    // Registra função para esta posição
+        behavior_register_position_function(profile->row, profile->col, profiles_process_key);
+    
+    return true; // Continua iteração
+}
+
+void profiles_register_positions(void) {
+    // Itera sobre todas as teclas profile e registra posições
+    // kind_iterate_profiles garante ordem 0-9 (P0-P9)
+    kind_iterate_profiles(profiles_register_positions_callback, NULL);
 }
 
 // ===== Funções Auxiliares =====
@@ -55,7 +49,7 @@ void profiles_register_positions(void) {
 static bool profile_is_empty(profile_t* profile) {
     if (!profile) return true;
     for (uint8_t i = 0; i < PROFILES_KEYS_COUNT; i++) {
-        if (profile->behaviors[i] != KEY_CUSTOM_UNASSOCIATED) {
+        if (profile->behaviors[i] != CUSTOM_BEHAVIOR_UNASSOCIATED) {
             return false;
         }
     }
@@ -151,26 +145,20 @@ void profiles_update_indicators(void) {
 // ===== Funções de Hook QMK =====
 
 // Processa KC_P0-KC_P9 (FN+P0-P9 para trocar profile) - baseado em profile_key_t*
-bool profiles_process_record_user(keyrecord_t *record, keymod_t keymod) {
-    uint8_t row = record->event.key.row;
-    uint8_t col = record->event.key.col;
-    bool pressed = record->event.pressed;
-    
-    // Encontra o profile_key_t* correspondente
-    profile_key_t* position = NULL;
-    uint8_t profile_index = 0;
-    for (uint8_t i = 0; i < PROFILES_COUNT; i++) {
-        if (profile_positions[i] != NULL && 
-            profile_positions[i]->row == row && 
-            profile_positions[i]->col == col) {
-            position = profile_positions[i];
-            profile_index = i;
-            break;
-        }
+bool profiles_process_key(base_key_t* key, bool pressed, keymod_t keymod) {
+    if (key == NULL || key->kind != KIND_PROFILE) {
+        return true;
     }
     
-    if (position == NULL) {
-        return true; // Não é uma tecla de profile
+    // Encontra o profile_key_t* correspondente
+    profile_key_t* position = (profile_key_t*)key;
+    
+    // Obtém profile_id do campo profile_index
+    uint8_t profile_index = position->profile_index;
+    
+    // Verifica se a posição está registrada
+    if (profile_index >= PROFILES_COUNT || profile_positions[profile_index] != position) {
+        return true; // Não é uma tecla de profile conhecida
     }
     
     // Atualiza estado de pressionado/solto
@@ -181,7 +169,7 @@ bool profiles_process_record_user(keyrecord_t *record, keymod_t keymod) {
         
         // Verifica se FN está ativo usando keymod
         // keymod é um enum de flags, verifica se contém KEYMOD_FN_ONLY
-        if (keymod_is_only_value(keymod, KEYMOD_FN_ONLY)) {
+        if (keymod_equals(keymod, KEYMOD_FN_ONLY)) {
             // Obtém settings
             settings_t* working = settings_get_working();
             if (working != NULL) {
@@ -214,24 +202,27 @@ bool profiles_process_record_user(keyrecord_t *record, keymod_t keymod) {
 }
 
 // Hook rgb_matrix_indicators_user
-static bool profiles_rgb_matrix_indicators_user(void) {
+static void profiles_rgb_matrix_indicators_user(const event_t* event) {
+    if (event->type != EVENT_RGB_INDICATORS) return;
     // Atualiza os LEDs primeiro (preserva PROFILE_PRESSED se estiver definido)
     profiles_update_indicators();
     // Depois atualiza os estados (mas não sobrescreve PROFILE_PRESSED)
     profiles_update_states();
-    return true;
 }
 
 // Callback para mudança de perfil
-static void profiles_on_profile_changed(profile_t* old_profile, profile_t* new_profile) {
+static void profiles_on_profile_changed(const event_t* event) {
+    if (event->type != EVENT_PROFILE_CHANGED) return;
     // Atualiza estados na matrix sempre que o perfil muda
     profiles_update_states();
     // Força atualização imediata dos indicadores
     profiles_update_indicators();
+    (void)event; // Variáveis do evento não são usadas diretamente
 }
 
 // Hook keyboard_post_init_user
-static void profiles_keyboard_post_init_user(void) {
+static void profiles_keyboard_post_init_user(const event_t* event) {
+    if (event->type != EVENT_KEYBOARD_POST_INIT) return;
     // Registra todas as posições de KC_P0-KC_P9 na matriz de behavior
     profiles_register_positions();
     
@@ -241,7 +232,7 @@ static void profiles_keyboard_post_init_user(void) {
     profiles_update_indicators();
     
     // Registra callback para atualizar LEDs quando o perfil mudar
-    settings_register_profile_changed_callback(profiles_on_profile_changed);
+    event_bus_subscribe_profile_changed(profiles_on_profile_changed);
 }
 
 // ===== Inicialização de Hooks =====
@@ -249,12 +240,12 @@ static void profiles_keyboard_post_init_user(void) {
 // Registra hooks que podem ser registrados antes da inicialização completa
 // Chamado em keyboard_pre_init_user
 void profiles_init_early_hooks(void) {
-    hooks_rgb_indicators_register(profiles_rgb_matrix_indicators_user);
+    event_bus_subscribe_rgb_indicators(profiles_rgb_matrix_indicators_user);
 }
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void profiles_init_hooks(void) {
-    hooks_keyboard_post_init_register(profiles_keyboard_post_init_user);
+    event_bus_subscribe(EVENT_KEYBOARD_POST_INIT, profiles_keyboard_post_init_user);
 }
 

@@ -5,7 +5,6 @@
 #include "keychron_common.h"
 
 #include "behavior.h"
-#include "hooks.h"
 #include "keymod.h"
 #include "kind.h"
 #include "custom/custom.h"
@@ -18,10 +17,11 @@
 #include "modifiers/modifiers.h"
 #include "disabled/disabled.h"
 #include "bold/bold.h"
-#include "others/others.h"
+#include "disabled_modifiers/disabled_modifiers.h"
 #include "settings.h"
 #include "profile.h"
-#include "customs.h"
+#include "custom_behaviors.h"
+#include "event_bus.h"
 
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -54,63 +54,44 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     // Obtém posição (row, col) do evento
     uint8_t row = record->event.key.row;
     uint8_t col = record->event.key.col;
+    bool pressed = record->event.pressed;
     
-    // Resolve o handler associado à posição através do grid
-    key_function_t handler;
-    keymod_t accepted_keymods;
-    if (!behavior_resolve_handler_by_position(row, col, &handler, &accepted_keymods)) {
-        return true; // Não há handler associado, passa o evento adiante
+    // Obtém a key associada à posição através do behavior
+    base_key_t* key = behavior_get_key_by_position(row, col);
+    if (key == NULL) {
+        return true; // Não há key associada, passa o evento adiante
     }
     
-    // Obtém entry do grid para verificar tipo
-    base_t* entry = kind_get_grid_entry(row, col);
-    if (entry == NULL) {
-        return true; // Entry não encontrado, passa adiante
+    // Obtém o keymod atual mantido por behavior
+    keymod_t keymod = behavior_get_current_keymod();
+    
+    // Verifica se keymod é aceito para esta key
+    // O teste é direto: verifica se o keymod atual (apenas um valor) está contido nas accepted_keymods (flags)
+    if (!keymod_intersects(keymod, key->accepted_keymods)) {
+        return true; // keymod não aceito, não consome e retorna
     }
     
-    // Calcula keymod apenas se necessário (custom ou position)
-    // Modifiers e others não precisam de keymod, apenas passam o evento
-    keymod_t keymod = KEYMOD_NONE;
-    kind_t entry_kind = entry->kind;
-    
-    if (entry_kind == KIND_CUSTOM || entry_kind == KIND_PROFILE || entry_kind == KIND_NUMLOCK || entry_kind == KIND_PERSISTENCE) {
-        keymod = keymod_get(record);
-        
-        // Verifica se keymod é aceito
-        bool keymod_accepted;
-        if (entry_kind == KIND_PROFILE || entry_kind == KIND_NUMLOCK || entry_kind == KIND_PERSISTENCE) {
-            keymod_accepted = keymod_is_accepted_for_position(keymod, accepted_keymods);
-        } else {
-            keymod_accepted = keymod_is_accepted_for_custom(keymod, accepted_keymods);
-        }
-        
-        if (!keymod_accepted) {
-            return true; // keymod não aceito, passa adiante
-        }
-    } else if (entry_kind == KIND_MODIFIER || entry_kind == KIND_OTHER || entry_kind == KIND_DISABLED || entry_kind == KIND_BOLD) {
-        // Modifiers, others, disabled e bold não precisam de keymod, sempre passa KEYMOD_NONE
-        keymod = KEYMOD_NONE;
-    }
-    
-    // Chama o handler registrado, passando record e keymod
-    return handler(record, keymod);
+    // Chama o handler registrado, passando a struct da key, se está pressionada, e o keymod
+    return key->process_key(key, pressed, keymod);
 }
 
 // ===== Hooks QMK =====
-// Ordem de execução: eeconfig_init_user → keyboard_post_init_user → matrix_scan_user → rgb_matrix_indicators_user
+// Ordem de execução:
+// 1. keyboard_pre_init_user()     - ANTES de quantum_init() (primeiro a executar)
+// 2. eeconfig_init_user()        - DURANTE quantum_init() (se EEPROM inválida)
+// 3. keyboard_post_init_user()   - DEPOIS de keyboard_init() (após hardware inicializado)
+// 4. matrix_scan_user()          - PERIODICAMENTE no loop principal (~1000 Hz)
+// 5. rgb_matrix_indicators_user() - PERIODICAMENTE durante renderização RGB
 
-// Hook eeconfig_init_user: reset de EEPROM quando inválida
-// Primeiro hook executado - chamado durante quantum_init() se EEPROM não estiver inicializada
-void eeconfig_init_user(void) {
-    hooks_eeconfig_init_dispatch();
-}
-
-// Hook keyboard_pre_init_user: registra hooks que podem ser registrados antes da inicialização completa
-// Executado antes de quantum_init() para garantir que callbacks estejam disponíveis quando necessário
+// ===== 1. keyboard_pre_init_user =====
+// Hook executado ANTES de quantum_init() para garantir que callbacks estejam disponíveis quando necessário
 // Necessário porque:
 // - eeconfig_init_user é chamado durante quantum_init(), antes de keyboard_post_init_user()
 // - matrix_scan_user e rgb_matrix_indicators_user não têm dependências de inicialização
 void keyboard_pre_init_user(void) {
+    // Inicializa Event Bus primeiro (deve ser chamado antes de eeconfig_init_user)
+    event_bus_init();
+    
     // Registra hooks que não dependem de inicialização completa
     hold_init_early_hooks();
     toggle_init_early_hooks();
@@ -122,22 +103,29 @@ void keyboard_pre_init_user(void) {
     bold_init_early_hooks();
 }
 
-// Hook keyboard_post_init_user: inicialização dos módulos
-// Segundo hook executado - chamado no final de keyboard_init() após todo hardware estar inicializado
+// ===== 2. eeconfig_init_user =====
+// Hook executado DURANTE quantum_init() se EEPROM não estiver inicializada
+// Chamado após keyboard_pre_init_user() mas antes de keyboard_post_init_user()
+void eeconfig_init_user(void) {
+    event_bus_publish_void(EVENT_EECONFIG_INIT);
+}
+
+// ===== 3. keyboard_post_init_user =====
+// Hook executado DEPOIS de keyboard_init() após todo hardware estar inicializado
+// Inicializa todos os módulos e registra seus handlers no Event Bus
 void keyboard_post_init_user(void) {
+    // Event Bus já foi inicializado em keyboard_pre_init_user()
+    
     // Inicializa grid primeiro (deve ser chamado antes de qualquer módulo que use o grid)
     kind_init_grid();
-    
-    // Inicializa settings (deve ser chamado antes de qualquer módulo que dependa de settings)
-    settings_init();
-    
+
     // Inicializa modifiers primeiro (outros módulos podem registrar callbacks)
     modifiers_init();
-    others_init();
-    
+    disabled_modifiers_init();
+
     // Registra hooks de todos os módulos (exceto eeconfig_init, já registrados em keyboard_pre_init_user)
     modifiers_init_hooks();
-    others_init_hooks();
+    disabled_modifiers_init_hooks();
     custom_init_hooks();
     hold_init_hooks();
     toggle_init_hooks();
@@ -147,43 +135,53 @@ void keyboard_post_init_user(void) {
     persistence_init_hooks();
     disabled_init_hooks();
     bold_init_hooks();
-    
-    // Registra callbacks de notificação de FN dos submódulos
+
+    // Inicializa settings APÓS todos os hooks serem registrados
+    // Isso garante que EVENT_SETTINGS_LOADED seja recebido pelos handlers
+    settings_init();
+
+    // Registra callbacks de notificação de FN dos submódulos via Event Bus
     // Os submódulos não conhecem modifiers, apenas expõem seus callbacks
-    modifiers_register_fn_callback((modifiers_fn_state_callback_t)hold_get_fn_callback());
-    modifiers_register_fn_callback((modifiers_fn_state_callback_t)toggle_get_fn_callback());
-    modifiers_register_fn_callback((modifiers_fn_state_callback_t)unassociated_get_fn_callback());
+    event_bus_subscribe_fn_state_changed(hold_fn_state_callback);
+    event_bus_subscribe_fn_state_changed(toggle_fn_state_callback);
+    event_bus_subscribe_fn_state_changed(unassociated_fn_state_callback);
     
     // Notifica estado inicial de FN aos submódulos
     // Isso garante sincronização do estado inicial
     // O estado será atualizado no primeiro matrix_scan_user
     // Por enquanto, notifica KEYMOD_NONE (estado inicial)
-    hold_get_fn_callback()(KEYMOD_NONE);
-    toggle_get_fn_callback()(KEYMOD_NONE);
-    unassociated_get_fn_callback()(KEYMOD_NONE);
+    event_data_t fn_none_data = {
+        .fn_state_changed = {.keymod = KEYMOD_NONE}
+    };
+    event_bus_publish(EVENT_FN_STATE_CHANGED, &fn_none_data);
     
     // Dispara inicialização de todos os módulos registrados
-    hooks_keyboard_post_init_dispatch();
+    event_bus_publish_void(EVENT_KEYBOARD_POST_INIT);
+
+    // NOTE: A sincronização de behaviors é feita automaticamente via EVENT_SETTINGS_LOADED
+    // disparado pelo settings_init() durante a inicialização
 }
 
-// Hook matrix_scan_user: scans periódicos dos módulos
-// Terceiro hook executado - chamado periodicamente no loop principal (~1000 Hz)
+// ===== 4. matrix_scan_user =====
+// Hook executado PERIODICAMENTE no loop principal (~1000 Hz)
+// Usado para scans periódicos dos módulos (timers, debounce, etc.)
 void matrix_scan_user(void) {
-    hooks_matrix_scan_dispatch();
+    event_bus_publish_void(EVENT_MATRIX_SCAN);
 }
 
-// Hook rgb_matrix_indicators_user: indicadores RGB dos módulos
-// Quarto hook executado - chamado periodicamente durante renderização RGB
+// ===== 5. rgb_matrix_indicators_user =====
+// Hook executado PERIODICAMENTE durante renderização RGB
+// Usado para atualizar LEDs dos módulos (indicadores de estado)
 bool rgb_matrix_indicators_user(void) {
     // Se o profile ativo estiver vazio, não renderiza cores dos módulos
     // Isso permite que as cores padrão do teclado sejam exibidas
     if (profile_is_active_profile_empty()) {
         return true;
     }
-    
+
     // Apenas sobrescreve LEDs com valores estipulados pelos módulos
     // LEDs sem valores estipulados mantêm as cores padrão do sistema
-    hooks_rgb_indicators_dispatch();
-    
+    event_bus_publish_void(EVENT_RGB_INDICATORS);
+
     return true;
 }

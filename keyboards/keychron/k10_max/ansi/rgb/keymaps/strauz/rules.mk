@@ -1,7 +1,7 @@
 RGB_MATRIX_ENABLE = yes
-CONSOLE_ENABLE = no
 VIA_ENABLE = yes
 LTO_ENABLE = yes
+CONSOLE_ENABLE = no
 #MOUSEKEY_ENABLE = no
 #EXTRAKEY_ENABLE = no
 #NKRO_ENABLE = no
@@ -18,9 +18,9 @@ OPT_DEFS += -DEECONFIG_USER_DATA_VERSION=1
 
 SRC += profile.c settings.c kind.c persist.c
 SRC += behavior.c
-SRC += hooks.c
 SRC += pulse.c
 SRC += keymod.c
+SRC += event_bus.c
 SRC += profiles/profiles.c
 SRC += custom/custom.c
 SRC += custom/hold/hold.c
@@ -31,4 +31,4 @@ SRC += numlock/numlock.c
 SRC += modifiers/modifiers.c
 SRC += disabled/disabled.c
 SRC += bold/bold.c
-SRC += others/others.c
+SRC += disabled_modifiers/disabled_modifiers.c

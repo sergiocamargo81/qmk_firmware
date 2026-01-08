@@ -4,6 +4,7 @@
 #include QMK_KEYBOARD_H
 #include "../../kind.h"  // Para custom_t
 #include "../../settings.h"
+#include "../../event_bus.h"  // Para event_handler_t
 #include "../../keymod.h"  // Para keymod_t
 
 // ===== Defines =====
@@ -15,14 +16,13 @@
 // ===== Tipos =====
 typedef uint8_t hold_state_t;
 enum {
-    DISABLED,
     WAITING,
     PRESSING,
     FIRING,
     RESTING
 };
 
-// Usa custom_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, supported_keymod, persist_index, function)
+// Usa custom_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, accepted_keymods, persist_index, process_key)
 // Campos modificáveis: state (uint8_t), timer (uint32_t)
 
 // ===== Variáveis Globais =====
@@ -38,7 +38,6 @@ void update_hold_states(void);
 
 void activate_hold_key(custom_t *custom);
 void deactivate_hold_key(custom_t *custom);
-void deactivate_all_hold(void);
 
 void sync_enabled_states(void);
 void update_indicators(void);
@@ -49,13 +48,9 @@ void reset_all_enabled_keys(void);
 
 // ===== Callback de Notificação de FN =====
 
-// Tipo de callback para notificar mudança de estado de FN
-// Compatível com modifiers_fn_state_callback_t
-typedef void (*hold_fn_state_callback_t)(keymod_t keymod);
-
-// Retorna o callback de notificação de FN
-// Será chamado externamente para registrar o callback em modifiers
-hold_fn_state_callback_t hold_get_fn_callback(void);
+// Callback para notificar mudança de estado de FN via Event Bus
+// Deve ser registrado no Event Bus em keyboard_post_init_user
+void hold_fn_state_callback(const event_t* event);
 
 // ===== Inicialização de Hooks =====
 
@@ -64,7 +59,7 @@ hold_fn_state_callback_t hold_get_fn_callback(void);
 void hold_init_early_hooks(void);
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void hold_init_hooks(void);
 
 #endif // BEHAVIOR_CUSTOM_HOLD_HOLD_H

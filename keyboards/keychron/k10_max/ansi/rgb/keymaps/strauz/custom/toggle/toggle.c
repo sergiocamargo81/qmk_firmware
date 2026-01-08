@@ -2,21 +2,18 @@
 
 #include "../../behavior.h"
 #include "../../kind.h"
-#include "../../customs.h"  // Para customs_t
+#include "../../custom_behaviors.h"  // Para custom_behaviors_t
 #include "../../profile.h"
 #include "../../settings.h"
 #include "../custom.h"
-#include "../../hooks.h"
+#include "../../event_bus.h"  // Para Event Bus
 #include "../../keymod.h"  // Para keymod_t
-#include "../hold/hold.h"  // Para deactivate_all_hold
 #include "../../colors.h"  // Para cores centralizadas
 #include "../../pulse.h"
 #include <string.h>  // Para memset
 
 // Declarações forward
-bool toggle_process_record_user(keyrecord_t *record, keymod_t keymod);
-void toggle_key_add_callback(uint8_t row, uint8_t col, customs_t behavior);
-void toggle_key_remove_callback(uint8_t row, uint8_t col, customs_t behavior);
+bool toggle_process_key(base_key_t* key, bool pressed, keymod_t keymod);
 
 // ===== Variáveis Globais =====
 
@@ -31,15 +28,14 @@ static keymod_t toggle_fn_keymod = KEYMOD_NONE;
 // ===== Funções Auxiliares =====
 static bool is_key_enabled(custom_t *custom) {
     if (!custom) return false;
-    // Verifica diretamente o behavior atual em vez de depender do bitfield
-    customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
-    return (behavior == KEY_CUSTOM_TOGGLE);
+    // Verifica diretamente o behavior atual usando o cache
+    return (custom->custom_behavior == CUSTOM_BEHAVIOR_TOGGLE);
 }
 
 static bool profiles_is_empty(profile_t* profile) {
     if (!profile) return true;
     for (uint8_t i = 0; i < PROFILES_KEYS_COUNT; i++) {
-        if (profile->behaviors[i] != KEY_CUSTOM_UNASSOCIATED) {
+        if (profile->behaviors[i] != CUSTOM_BEHAVIOR_UNASSOCIATED) {
             return false;
         }
     }
@@ -47,17 +43,18 @@ static bool profiles_is_empty(profile_t* profile) {
 }
 
 // Callback para notificar mudança de estado de FN
-static void toggle_fn_state_callback(keymod_t keymod) {
-    toggle_fn_keymod = keymod;
+void toggle_fn_state_callback(const event_t* event) {
+    if (event->type != EVENT_FN_STATE_CHANGED) return;
+    toggle_fn_keymod = (keymod_t)event->data.fn_state_changed.keymod;
 }
 
-// Função pública para obter o callback de notificação de FN
-toggle_fn_state_callback_t toggle_get_fn_callback(void) {
-    return toggle_fn_state_callback;
-}
-
-// Callback para notificar inclusão de tecla no controle de toggle
-void toggle_key_add_callback(uint8_t row, uint8_t col, customs_t behavior) {
+// Handler para notificar inclusão de tecla no controle de toggle (via Event Bus)
+static void toggle_custom_behavior_added(const event_t* event) {
+    if (event->type != EVENT_CUSTOM_BEHAVIOR_ADDED) return;
+    if (event->data.custom_behavior.behavior != CUSTOM_BEHAVIOR_TOGGLE) return;
+    
+    uint8_t row = event->data.custom_behavior.row;
+    uint8_t col = event->data.custom_behavior.col;
     custom_t* custom = toggle_get_key_by_position(row, col);
     if (custom) {
         // Inicializa estado apenas para esta tecla
@@ -67,7 +64,7 @@ void toggle_key_add_callback(uint8_t row, uint8_t col, customs_t behavior) {
         // A pulsação será aplicada em toggle_update_indicators()
         // Inicializa com cor apropriada baseada no estado de FN
         uint8_t brightness = calculate_pulse_brightness();
-        if (keymod_is_only_value(toggle_fn_keymod, KEYMOD_FN_ONLY)) {
+        if (keymod_equals(toggle_fn_keymod, KEYMOD_FN_ONLY)) {
             // Apenas FN está pressionada: verde pulsante
             color_rgb_t green = color_apply_brightness(COLOR_GREEN, brightness);
             rgb_matrix_set_color(custom->led_index, green.r, green.g, green.b);
@@ -79,8 +76,43 @@ void toggle_key_add_callback(uint8_t row, uint8_t col, customs_t behavior) {
     }
 }
 
-// Callback para notificar remoção de tecla do controle de toggle
-void toggle_key_remove_callback(uint8_t row, uint8_t col, customs_t behavior) {
+// Handler para mudanças de behavior (via Event Bus)
+static void toggle_custom_behavior_changed_handler(const event_t* event) {
+    if (event->type != EVENT_CUSTOM_BEHAVIOR_CHANGED) return;
+
+    uint8_t row = event->data.custom_behavior_changed.row;
+    uint8_t col = event->data.custom_behavior_changed.col;
+    custom_behaviors_t old_behavior = (custom_behaviors_t)event->data.custom_behavior_changed.old_behavior;
+    custom_behaviors_t new_behavior = (custom_behaviors_t)event->data.custom_behavior_changed.new_behavior;
+
+    custom_t* custom = toggle_get_key_by_position(row, col);
+    if (!custom) return;
+
+    // Se passou a ser TOGGLE
+    if (new_behavior == CUSTOM_BEHAVIOR_TOGGLE) {
+        // Inicializa estado para esta tecla
+        custom->state = TOGGLE_OFF;
+        // Handler já foi registrado na inicialização - não precisa registrar novamente
+        // Atualiza LEDs
+        toggle_update_indicators();
+    }
+    // Se deixou de ser TOGGLE
+    else if (old_behavior == CUSTOM_BEHAVIOR_TOGGLE) {
+        // Remove estado TOGGLE desta tecla
+        custom->state = TOGGLE_OFF;
+        // Se nenhum custom tem TOGGLE, poderíamos desregistrar handler, mas mantemos para simplicidade
+        // Atualiza LEDs
+        toggle_update_indicators();
+    }
+}
+
+// Handler para notificar remoção de tecla do controle de toggle (via Event Bus)
+static void toggle_custom_behavior_removed(const event_t* event) {
+    if (event->type != EVENT_CUSTOM_BEHAVIOR_REMOVED) return;
+    if (event->data.custom_behavior.behavior != CUSTOM_BEHAVIOR_TOGGLE) return;
+
+    uint8_t row = event->data.custom_behavior.row;
+    uint8_t col = event->data.custom_behavior.col;
     custom_t* custom = toggle_get_key_by_position(row, col);
     if (custom) {
         // Limpa estado - a tecla será recolorida quando associada a outro módulo
@@ -92,18 +124,16 @@ void toggle_key_remove_callback(uint8_t row, uint8_t col, customs_t behavior) {
 custom_t* toggle_get_key_by_position(uint8_t row, uint8_t col) {
     custom_t* custom = kind_get_custom(row, col);
     if (custom == NULL) return NULL;
-    // Verifica se o behavior é TOGGLE
-    customs_t behavior = custom_get_behavior_by_position(row, col);
-    if (behavior != KEY_CUSTOM_TOGGLE) return NULL;
+    // Verifica se o behavior é TOGGLE usando o cache
+    if (custom->custom_behavior != CUSTOM_BEHAVIOR_TOGGLE) return NULL;
     return custom;
 }
 
 custom_t* toggle_get_key_by_index(uint8_t persist_index) {
     custom_t* custom = kind_get_custom_by_index(persist_index);
     if (custom == NULL) return NULL;
-    // Verifica se o behavior é TOGGLE
-    customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
-    if (behavior != KEY_CUSTOM_TOGGLE) return NULL;
+    // Verifica se o behavior é TOGGLE usando o cache
+    if (custom->custom_behavior != CUSTOM_BEHAVIOR_TOGGLE) return NULL;
     return custom;
 }
 
@@ -113,9 +143,8 @@ void toggle_update_states(void) {
         custom_t* custom = kind_get_custom_by_index(i);
         if (custom == NULL) continue;
         
-        // Verifica se o behavior é TOGGLE
-        customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
-        if (behavior != KEY_CUSTOM_TOGGLE) continue;
+        // Verifica se o behavior é TOGGLE usando o cache
+        if (custom->custom_behavior != CUSTOM_BEHAVIOR_TOGGLE) continue;
         
         if (custom->state == TOGGLE_OFF) continue;
         if (custom->state == TOGGLE_ON) {
@@ -148,22 +177,6 @@ void toggle_deactivate_key(custom_t *custom) {
     (void)custom;  // Evita warning de parâmetro não usado
 }
 
-void toggle_deactivate_all(void) {
-    // Desativa todas as teclas toggle que estão em estado TOGGLE_ON
-    for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
-        custom_t* custom = kind_get_custom_by_index(i);
-        if (custom == NULL) continue;
-        
-        // Verifica se o behavior é TOGGLE
-        customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
-        if (behavior != KEY_CUSTOM_TOGGLE) continue;
-        
-        if (custom->state == TOGGLE_ON) {
-            custom->state = TOGGLE_OFF;
-        }
-    }
-}
-
 void toggle_sync_enabled_states(void) {
     for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
         custom_t* custom = kind_get_custom_by_index(i);
@@ -182,9 +195,8 @@ void toggle_update_indicators(void) {
         custom_t* custom = kind_get_custom_by_index(i);
         if (custom == NULL) continue;
         
-        // Verifica se esta tecla está realmente associada a TOGGLE
-        customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
-        if (behavior == KEY_CUSTOM_TOGGLE) {
+        // Verifica se esta tecla está realmente associada a TOGGLE usando o cache
+        if (custom->custom_behavior == CUSTOM_BEHAVIOR_TOGGLE) {
             // Esta tecla está associada a TOGGLE
             // Atualiza LED baseado no estado
             switch (custom->state) {
@@ -234,88 +246,77 @@ void toggle_reset_all_keys(void) {
 // ===== Funções de Hook QMK =====
 
 // Processa eventos de tecla para toggle
-bool toggle_process_record_user(keyrecord_t *record, keymod_t keymod) {
-    // Obtém row/col do record (mais eficiente que usar keycode)
-    uint8_t row = record->event.key.row;
-    uint8_t col = record->event.key.col;
+bool toggle_process_key(base_key_t* key, bool pressed, keymod_t keymod) {
+    if (key == NULL || key->kind != KIND_CUSTOM) {
+        return true;
+    }
     
-    // Busca a tecla toggle por posição (O(1))
-    custom_t* custom = toggle_get_key_by_position(row, col);
+    custom_t* custom = (custom_t*)key;
     
-    if (custom) {
-        // Verifica se o behavior é TOGGLE usando custom
-        customs_t behavior = custom_get_behavior_by_position(row, col);
-        if (behavior == KEY_CUSTOM_TOGGLE) {
-            if (record->event.pressed) {
-                // Salva o estado anterior antes de marcar como PRESSED
-                toggle_state_t prev_state = (custom->state == TOGGLE_PRESSED) ? TOGGLE_OFF : custom->state;
-                // Marca como pressionado
-                custom->state = TOGGLE_PRESSED;
-                // Alterna o estado baseado no estado anterior
-                uint32_t now = timer_read32();
-                if (prev_state == TOGGLE_OFF) {
-                    custom->state = TOGGLE_ON;
-                    custom->timer = now;
-                    tap_code(custom->keycode);
-                } else if (prev_state == TOGGLE_ON) {
-                    custom->state = TOGGLE_OFF;
-                }
-            } else {
-                // No release, se ainda está em PRESSED (não deveria acontecer), restaura
-                if (custom->state == TOGGLE_PRESSED) {
-                    custom->state = TOGGLE_OFF;
-                }
-                // Caso contrário, mantém o estado alternado (TOGGLE_OFF ou TOGGLE_ON)
-                toggle_deactivate_key(custom);
+    // Verifica se o behavior é TOGGLE usando o cache
+    if (custom->custom_behavior == CUSTOM_BEHAVIOR_TOGGLE) {
+        if (pressed) {
+            // Salva o estado anterior antes de marcar como PRESSED
+            toggle_state_t prev_state = (custom->state == TOGGLE_PRESSED) ? TOGGLE_OFF : custom->state;
+            // Marca como pressionado
+            custom->state = TOGGLE_PRESSED;
+            // Alterna o estado baseado no estado anterior
+            uint32_t now = timer_read32();
+            if (prev_state == TOGGLE_OFF) {
+                custom->state = TOGGLE_ON;
+                custom->timer = now;
+                tap_code(custom->keycode);
+            } else if (prev_state == TOGGLE_ON) {
+                custom->state = TOGGLE_OFF;
             }
-            return true;
+        } else {
+            // No release, se ainda está em PRESSED (não deveria acontecer), restaura
+            if (custom->state == TOGGLE_PRESSED) {
+                custom->state = TOGGLE_OFF;
+            }
+            // Caso contrário, mantém o estado alternado (TOGGLE_OFF ou TOGGLE_ON)
+            toggle_deactivate_key(custom);
         }
+        return true;
     }
 
     return true;
 }
 
 // Hook matrix_scan_user
-static void toggle_matrix_scan_user(void) {
+static void toggle_matrix_scan_user(const event_t* event) {
+    if (event->type != EVENT_MATRIX_SCAN) return;
     toggle_update_states();
 }
 
 // Hook rgb_matrix_indicators_user
-static bool toggle_rgb_matrix_indicators_user(void) {
-    if (!toggle_is_profile_mode_active()) return true;
+static void toggle_rgb_matrix_indicators_user(const event_t* event) {
+    if (event->type != EVENT_RGB_INDICATORS) return;
+    if (!toggle_is_profile_mode_active()) return;
     toggle_update_indicators();
-    return false;
 }
 
 // Hook keyboard_post_init_user
-static void toggle_keyboard_post_init_user(void) {
-    // Registra callbacks para KEY_CUSTOM_TOGGLE
-    custom_callbacks_t callbacks = {
-        .key_handler = toggle_process_record_user,
-        .add_callback = toggle_key_add_callback,
-        .remove_callback = toggle_key_remove_callback
-    };
-    custom_register_callbacks(KEY_CUSTOM_TOGGLE, callbacks);
-    
+static void toggle_keyboard_post_init_user(const event_t* event) {
+    if (event->type != EVENT_KEYBOARD_POST_INIT) return;
+
+    // Registra handler para processamento de teclas
+    custom_register_handler(CUSTOM_BEHAVIOR_TOGGLE, toggle_process_key);
+
+    // Registra handlers para eventos via Event Bus
+    event_bus_subscribe(EVENT_CUSTOM_BEHAVIOR_ADDED, toggle_custom_behavior_added);
+    event_bus_subscribe(EVENT_CUSTOM_BEHAVIOR_REMOVED, toggle_custom_behavior_removed);
+    event_bus_subscribe(EVENT_CUSTOM_BEHAVIOR_CHANGED, toggle_custom_behavior_changed_handler);
+
     // Estado de FN será inicializado como KEYMOD_NONE
     // Será atualizado via notificação quando FN for pressionado
     toggle_fn_keymod = KEYMOD_NONE;
-    
+
     // Inicializa outras coisas...
     toggle_sync_enabled_states();
     
-    // Força chamada de add_callback para teclas que já têm o behavior no profile ativo
-    // Isso garante que os LEDs sejam ligados na inicialização
-    for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
-        custom_t* custom = kind_get_custom_by_index(i);
-        if (custom == NULL) continue;
-        
-        customs_t behavior = custom_get_behavior_by_position(custom->row, custom->col);
-        if (behavior == KEY_CUSTOM_TOGGLE) {
-            // Chama add_callback para inicializar LED e estado
-            toggle_key_add_callback(custom->row, custom->col, KEY_CUSTOM_TOGGLE);
-        }
-    }
+    // NOTE: A inicialização dos behaviors é feita via EVENT_CUSTOM_BEHAVIOR_CHANGED
+    // disparado pelo custom_settings_loaded_handler quando settings são carregados
 }
 
 // ===== Inicialização de Hooks =====
@@ -323,12 +324,12 @@ static void toggle_keyboard_post_init_user(void) {
 // Registra hooks que podem ser registrados antes da inicialização completa
 // Chamado em keyboard_pre_init_user
 void toggle_init_early_hooks(void) {
-    hooks_matrix_scan_register(toggle_matrix_scan_user);
-    hooks_rgb_indicators_register(toggle_rgb_matrix_indicators_user);
+    event_bus_subscribe(EVENT_MATRIX_SCAN, toggle_matrix_scan_user);
+    event_bus_subscribe_rgb_indicators(toggle_rgb_matrix_indicators_user);
 }
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void toggle_init_hooks(void) {
-    hooks_keyboard_post_init_register(toggle_keyboard_post_init_user);
+    event_bus_subscribe(EVENT_KEYBOARD_POST_INIT, toggle_keyboard_post_init_user);
 }

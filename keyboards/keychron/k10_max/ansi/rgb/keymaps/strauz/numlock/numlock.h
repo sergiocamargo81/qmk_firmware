@@ -25,7 +25,7 @@ void numlock_register_position(void);
 void numlock_init_early_hooks(void);
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void numlock_init_hooks(void);
 
 #endif // NUMLOCK_H

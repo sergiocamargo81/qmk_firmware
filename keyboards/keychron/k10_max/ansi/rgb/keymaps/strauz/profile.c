@@ -34,9 +34,9 @@ bool profile_is_active_profile_empty(void) {
     profile_t* active_profile = profile_get_active_profile(&working->profiles);
     if (!active_profile) return true;
     
-    // Verifica se todos os behaviors são KEY_CUSTOM_UNASSOCIATED
+    // Verifica se todos os behaviors são CUSTOM_BEHAVIOR_UNASSOCIATED
     for (uint8_t i = 0; i < PROFILES_KEYS_COUNT; i++) {
-        if (active_profile->behaviors[i] != KEY_CUSTOM_UNASSOCIATED) {
+        if (active_profile->behaviors[i] != CUSTOM_BEHAVIOR_UNASSOCIATED) {
             return false;
         }
     }

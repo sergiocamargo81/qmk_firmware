@@ -22,11 +22,6 @@ typedef struct {
     profiles_t profiles;
 } settings_t;
 
-// Tipo de callback para notificar mudança de profile ativo
-// old_profile: ponteiro para o profile anterior (pode ser NULL se não havia profile ativo)
-// new_profile: ponteiro para o novo profile ativo (nunca NULL)
-typedef void (*settings_profile_changed_callback_t)(profile_t* old_profile, profile_t* new_profile);
-
 // ===== Functions =====
 
 // Inicializa estruturas de dados e carrega da EEPROM
@@ -40,11 +35,7 @@ settings_t* settings_get_working(void);
 settings_t* settings_get_persisted(void);
 
 // ===== Sistema de Callbacks para Mudança de Profile =====
-
-// Registra um callback para ser notificado quando o profile ativo mudar
-// Deve ser chamado durante {modulo}_keyboard_post_init_user
-// Retorna true se sucesso, false se não há mais espaço
-bool settings_register_profile_changed_callback(settings_profile_changed_callback_t callback);
+// Migrado para Event Bus - use event_bus_subscribe_profile_changed() em vez de settings_register_profile_changed_callback()
 
 // Define o profile ativo e notifica todos os callbacks registrados
 // Esta função deve ser usada em vez de profile_set_active_profile diretamente

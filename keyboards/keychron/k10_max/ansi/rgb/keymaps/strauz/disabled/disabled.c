@@ -2,7 +2,7 @@
 
 #include "../kind.h"
 #include "../behavior.h"
-#include "../hooks.h"
+#include "../event_bus.h"  // Para Event Bus
 #include "../colors.h"  // Para cores centralizadas
 #include "../pulse.h"
 #include "rgb_matrix.h"
@@ -35,16 +35,14 @@ static bool disabled_update_led_callback(disabled_t* disabled, void* user_data) 
 // ===== Processamento de Eventos =====
 
 // Processa eventos de teclas disabled
-bool disabled_process_record_user(keyrecord_t *record, keymod_t keymod) {
-    uint8_t row = record->event.key.row;
-    uint8_t col = record->event.key.col;
-    bool pressed = record->event.pressed;
+bool disabled_process_key(base_key_t* key, bool pressed, keymod_t keymod) {
+    if (key == NULL || key->kind != KIND_DISABLED) {
+        return true;
+    }
     
     // Atualiza estado na matrix
-    disabled_t* disabled = kind_get_disabled(row, col);
-    if (disabled != NULL) {
-        disabled->state = pressed ? DISABLED_PRESSED : DISABLED_IDLE;
-    }
+    disabled_t* disabled = (disabled_t*)key;
+    disabled->state = pressed ? DISABLED_PRESSED : DISABLED_IDLE;
     
     // Não consome o evento, permite que seja processado normalmente
     return true;
@@ -54,14 +52,13 @@ bool disabled_process_record_user(keyrecord_t *record, keymod_t keymod) {
 
 // Hook rgb_matrix_indicators_user
 // Atualiza LEDs de todas as teclas disabled com pulsação em branco
-static bool disabled_rgb_matrix_indicators_user(void) {
+static void disabled_rgb_matrix_indicators_user(const event_t* event) {
+    if (event->type != EVENT_RGB_INDICATORS) return;
     // Calcula brilho pulsante (0-255)
     uint8_t brightness = calculate_pulse_brightness();
     
     // Itera sobre todas as teclas disabled e atualiza seus LEDs
     kind_iterate_disabled(disabled_update_led_callback, &brightness);
-    
-    return true;
 }
 
 // ===== Inicialização =====
@@ -72,13 +69,14 @@ static bool disabled_init_callback(disabled_t* disabled, void* user_data) {
     if (disabled != NULL) {
         disabled->state = DISABLED_IDLE;
         // Registra handler para esta posição
-        behavior_register_position_function(disabled->row, disabled->col, disabled_process_record_user);
+        behavior_register_position_function(disabled->row, disabled->col, disabled_process_key);
     }
     return true;
 }
 
 // Inicializa estados e registra handlers
-static void disabled_keyboard_post_init_user(void) {
+static void disabled_keyboard_post_init_user(const event_t* event) {
+    if (event->type != EVENT_KEYBOARD_POST_INIT) return;
     // Itera sobre todas as teclas disabled e inicializa estados
     kind_iterate_disabled(disabled_init_callback, NULL);
 }
@@ -88,11 +86,11 @@ static void disabled_keyboard_post_init_user(void) {
 // Registra hooks que podem ser registrados antes da inicialização completa
 // Chamado em keyboard_pre_init_user
 void disabled_init_early_hooks(void) {
-    hooks_rgb_indicators_register(disabled_rgb_matrix_indicators_user);
+    event_bus_subscribe_rgb_indicators(disabled_rgb_matrix_indicators_user);
 }
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void disabled_init_hooks(void) {
-    hooks_keyboard_post_init_register(disabled_keyboard_post_init_user);
+    event_bus_subscribe(EVENT_KEYBOARD_POST_INIT, disabled_keyboard_post_init_user);
 }

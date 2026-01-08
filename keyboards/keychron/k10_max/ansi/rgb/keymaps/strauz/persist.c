@@ -1,7 +1,7 @@
 #include "persist.h"
 
 #include "eeconfig.h"
-#include "customs.h"  // Para customs_t e KEY_CUSTOM_MASK
+#include "custom_behaviors.h"  // Para custom_behaviors_t e CUSTOM_BEHAVIOR_MASK
 
 #include <string.h>
 
@@ -66,7 +66,7 @@ static void _settings_pack_nocrc(const settings_t *settings, uint8_t *out) {
             uint8_t byte_index = i / 4;
             uint8_t bit_offset = (i % 4) * 2;
             // Grava apenas custom (HOLD, TOGGLE) - mascarando outros tipos
-            uint8_t behavior_value = (uint8_t)settings->profiles.profiles[p].behaviors[i] & KEY_CUSTOM_MASK;
+            uint8_t behavior_value = (uint8_t)settings->profiles.profiles[p].behaviors[i] & CUSTOM_BEHAVIOR_MASK;
             profile_packed[byte_index] |= (uint8_t)(behavior_value << bit_offset);
         }
 
@@ -93,8 +93,8 @@ static void _settings_unpack(const uint8_t *blob, settings_t *settings) {
             uint8_t byte_index = i / 4;
             uint8_t bit_offset = (i % 4) * 2;
             // Lê apenas custom (HOLD, TOGGLE)
-            uint8_t behavior_value = (ptr[byte_index] >> bit_offset) & KEY_CUSTOM_MASK;
-            settings->profiles.profiles[p].behaviors[i] = (customs_t)behavior_value;
+            uint8_t behavior_value = (ptr[byte_index] >> bit_offset) & CUSTOM_BEHAVIOR_MASK;
+            settings->profiles.profiles[p].behaviors[i] = (custom_behaviors_t)behavior_value;
         }
         ptr += SETTINGS_PROFILE_PACKED_SIZE;
     }

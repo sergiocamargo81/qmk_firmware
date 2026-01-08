@@ -1,12 +1,12 @@
 #include "modifiers.h"
 
-#include "../hooks.h"
 #include "../keymap.h"  // Para WIN_FN
 #include "../kind.h"    // Para kind_get_modifier
 #include "../keymod.h"  // Para keymod_t e keymod_get
 #include "../colors.h"  // Para cores centralizadas
 #include "../pulse.h"   // Para calculate_pulse_brightness
-#include "../behavior.h"  // Para behavior_register_position_function
+#include "../behavior.h"  // Para behavior_register_position_function, behavior_update_keymod
+#include "../event_bus.h" // Para Event Bus
 #include "rgb_matrix.h"
 #include "action.h"  // Para keyrecord_t
 
@@ -19,8 +19,7 @@ enum {
 
 // ===== Variáveis Globais =====
 
-static modifiers_fn_state_callback_t fn_callbacks[MODIFIERS_MAX_CALLBACKS] = {NULL};
-static uint8_t fn_callback_count = 0;
+// Sistema de callbacks migrado para Event Bus
 static keymod_t fn_keymod_state = KEYMOD_NONE;
 static keymod_t fn_keymod_prev_state = KEYMOD_NONE;
 
@@ -59,11 +58,16 @@ static keymod_t detect_fn_keymod(void) {
 
 // Notifica todos os callbacks registrados sobre mudança de estado de FN
 static void notify_fn_state_change(keymod_t keymod) {
-    for (uint8_t i = 0; i < fn_callback_count; i++) {
-        if (fn_callbacks[i] != NULL) {
-            fn_callbacks[i](keymod);
+    // Atualiza keymod em behavior
+    behavior_update_keymod(keymod);
+    
+    // Dispara Event Bus
+    event_data_t data = {
+        .fn_state_changed = {
+            .keymod = keymod
         }
-    }
+    };
+    event_bus_publish(EVENT_FN_STATE_CHANGED, &data);
 }
 
 // Verifica se uma tecla modifier está pressionada (usa campo state da matrix)
@@ -89,15 +93,15 @@ static void update_modifier_leds(void) {
         
         // FN tem comportamento especial baseado no keymod
         if (mod == fn_modifier) {
-            if (keymod_is_only_value(fn_keymod_state, KEYMOD_FN_ONLY)) {
+            if (keymod_equals(fn_keymod_state, KEYMOD_FN_ONLY)) {
                 // Apenas FN: amarelo sólido
                 color_rgb_t yellow = color_get_rgb(COLOR_YELLOW);
                 rgb_matrix_set_color(mod->led_index, yellow.r, yellow.g, yellow.b);
-            } else if (keymod_is_only_value(fn_keymod_state, KEYMOD_FN_RCTL)) {
+            } else if (keymod_equals(fn_keymod_state, KEYMOD_FN_RCTL)) {
                 // FN+RCTRL: azul sólido
                 color_rgb_t blue = color_get_rgb(COLOR_BLUE);
                 rgb_matrix_set_color(mod->led_index, blue.r, blue.g, blue.b);
-            } else if (keymod_is_only_value(fn_keymod_state, KEYMOD_FN_RALT)) {
+            } else if (keymod_equals(fn_keymod_state, KEYMOD_FN_RALT)) {
                 // FN+RALT: verde sólido
                 color_rgb_t green = color_get_rgb(COLOR_GREEN);
                 rgb_matrix_set_color(mod->led_index, green.r, green.g, green.b);
@@ -109,7 +113,7 @@ static void update_modifier_leds(void) {
             }
         } else if (mod == rctl_modifier) {
             // RCTRL: azul quando FN+RCTRL está ativo, roxo contínuo quando pressionada, roxo pulsante quando não
-            if (keymod_is_only_value(fn_keymod_state, KEYMOD_FN_RCTL)) {
+            if (keymod_equals(fn_keymod_state, KEYMOD_FN_RCTL)) {
                 // FN+RCTRL: azul sólido (sobrepõe comportamento padrão)
                 color_rgb_t blue = color_get_rgb(COLOR_BLUE);
                 rgb_matrix_set_color(mod->led_index, blue.r, blue.g, blue.b);
@@ -125,7 +129,7 @@ static void update_modifier_leds(void) {
             }
         } else if (mod == ralt_modifier) {
             // RALT: verde quando FN+RALT está ativo, roxo contínuo quando pressionada, roxo pulsante quando não
-            if (keymod_is_only_value(fn_keymod_state, KEYMOD_FN_RALT)) {
+            if (keymod_equals(fn_keymod_state, KEYMOD_FN_RALT)) {
                 // FN+RALT: verde sólido (sobrepõe comportamento padrão)
                 color_rgb_t green = color_get_rgb(COLOR_GREEN);
                 rgb_matrix_set_color(mod->led_index, green.r, green.g, green.b);
@@ -157,50 +161,11 @@ static void update_modifier_leds(void) {
 
 // ===== API Pública =====
 
-bool modifiers_register_fn_callback(modifiers_fn_state_callback_t callback) {
-    if (callback == NULL) {
-        return false;
-    }
-    
-    // Verifica se já está registrado
-    for (uint8_t i = 0; i < fn_callback_count; i++) {
-        if (fn_callbacks[i] == callback) {
-            return false; // Já registrado
-        }
-    }
-    
-    // Verifica se há espaço
-    if (fn_callback_count >= MODIFIERS_MAX_CALLBACKS) {
-        return false; // Limite atingido
-    }
-    
-    // Registra callback
-    fn_callbacks[fn_callback_count++] = callback;
-    return true;
-}
-
-bool modifiers_unregister_fn_callback(modifiers_fn_state_callback_t callback) {
-    if (callback == NULL) {
-        return false;
-    }
-    
-    // Procura e remove callback
-    for (uint8_t i = 0; i < fn_callback_count; i++) {
-        if (fn_callbacks[i] == callback) {
-            // Move callbacks seguintes para frente
-            for (uint8_t j = i; j < fn_callback_count - 1; j++) {
-                fn_callbacks[j] = fn_callbacks[j + 1];
-            }
-            fn_callbacks[--fn_callback_count] = NULL;
-            return true;
-        }
-    }
-    
-    return false; // Não encontrado
-}
+// Sistema de callbacks migrado para Event Bus
+// Use event_bus_subscribe_fn_state_changed() em vez de modifiers_register_fn_callback()
 
 bool modifiers_is_fn_pressed(void) {
-    return keymod_has_value(fn_keymod_state, KEYMOD_FN_ONLY | KEYMOD_FN_RCTL | KEYMOD_FN_RALT | KEYMOD_FN_RSFT);
+    return keymod_intersects(fn_keymod_state, KEYMOD_FN_ONLY | KEYMOD_FN_RCTL | KEYMOD_FN_RALT | KEYMOD_FN_RSFT);
 }
 
 // ===== Inicialização =====
@@ -210,11 +175,14 @@ void modifiers_init(void) {
     fn_keymod_state = KEYMOD_NONE;
     fn_keymod_prev_state = KEYMOD_NONE;
     
-    // Obtém ponteiros para modifiers do grid
-    fn_modifier = kind_get_modifier(5, 12);  // FN
-    ralt_modifier = kind_get_modifier(5, 10);  // RALT
-    rctl_modifier = kind_get_modifier(5, 13);  // RCTL
-    rsft_modifier = kind_get_modifier(4, 13);  // RSFT
+    // Atualiza keymod inicial em behavior
+    behavior_update_keymod(KEYMOD_NONE);
+    
+    // Obtém ponteiros para modifiers diretamente do pool
+    fn_modifier = kind_get_fn_key();
+    ralt_modifier = kind_get_ralt_key();
+    rctl_modifier = kind_get_rctl_key();
+    rsft_modifier = kind_get_rsft_key();
     
     // Inicializa estados na matrix
     if (fn_modifier) fn_modifier->state = MODIFIER_IDLE;
@@ -223,18 +191,17 @@ void modifiers_init(void) {
     if (rsft_modifier) rsft_modifier->state = MODIFIER_IDLE;
     
     // Registra handlers para modifiers de interesse (FN, RSHIFT, RALT, RCTRL)
-    extern bool modifiers_process_record_user(keyrecord_t *record, keymod_t keymod);
     if (fn_modifier != NULL) {
-        behavior_register_position_function(fn_modifier->row, fn_modifier->col, modifiers_process_record_user);
+        behavior_register_position_function(fn_modifier->row, fn_modifier->col, modifiers_process_key);
     }
     if (rsft_modifier != NULL) {
-        behavior_register_position_function(rsft_modifier->row, rsft_modifier->col, modifiers_process_record_user);
+        behavior_register_position_function(rsft_modifier->row, rsft_modifier->col, modifiers_process_key);
     }
     if (ralt_modifier != NULL) {
-        behavior_register_position_function(ralt_modifier->row, ralt_modifier->col, modifiers_process_record_user);
+        behavior_register_position_function(ralt_modifier->row, ralt_modifier->col, modifiers_process_key);
     }
     if (rctl_modifier != NULL) {
-        behavior_register_position_function(rctl_modifier->row, rctl_modifier->col, modifiers_process_record_user);
+        behavior_register_position_function(rctl_modifier->row, rctl_modifier->col, modifiers_process_key);
     }
     
     modifiers_initialized = true;
@@ -244,17 +211,17 @@ void modifiers_init(void) {
 
 // Processa eventos de modifiers (FN, RSHIFT, RALT, RCTRL)
 // Retorna false se consumiu o evento, true caso contrário
-bool modifiers_process_record_user(keyrecord_t *record, keymod_t keymod) {
+bool modifiers_process_key(base_key_t* key, bool pressed, keymod_t keymod) {
     if (!modifiers_initialized) {
         return true;
     }
     
-    uint8_t row = record->event.key.row;
-    uint8_t col = record->event.key.col;
-    bool pressed = record->event.pressed;
+    if (key == NULL || key->kind != KIND_MODIFIER) {
+        return true;
+    }
     
     // Atualiza estado na matrix baseado no evento
-    modifier_t* modifier = kind_get_modifier(row, col);
+    modifier_t* modifier = (modifier_t*)key;
     if (modifier != NULL) {
         modifier_state_t old_state = modifier->state;
         modifier->state = pressed ? MODIFIER_PRESSED : MODIFIER_IDLE;
@@ -266,7 +233,7 @@ bool modifiers_process_record_user(keyrecord_t *record, keymod_t keymod) {
             keymod_t new_keymod = detect_fn_keymod();
             // Sempre atualiza o estado, mesmo se for o mesmo valor
             // Isso garante que o estado está sincronizado
-            if (!keymod_is_only_value(new_keymod, fn_keymod_state)) {
+            if (!keymod_equals(new_keymod, fn_keymod_state)) {
                 fn_keymod_state = new_keymod;
                 notify_fn_state_change(fn_keymod_state);
             }
@@ -279,14 +246,14 @@ bool modifiers_process_record_user(keyrecord_t *record, keymod_t keymod) {
 }
 
 // Hook rgb_matrix_indicators_user: atualiza LEDs dos modificadores
-static bool modifiers_rgb_matrix_indicators_user(void) {
+static void modifiers_rgb_matrix_indicators_user(const event_t* event) {
+    if (event->type != EVENT_RGB_INDICATORS) return;
     update_modifier_leds();
-    return true;
 }
 
 // ===== Registro de Hooks =====
 
 void modifiers_init_hooks(void) {
     // Registra hook de rgb_indicators para atualizar LEDs
-    hooks_rgb_indicators_register(modifiers_rgb_matrix_indicators_user);
+    event_bus_subscribe_rgb_indicators(modifiers_rgb_matrix_indicators_user);
 }

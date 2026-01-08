@@ -75,47 +75,20 @@ keymod_t keymod_get(keyrecord_t *record) {
     return KEYMOD_FN_ONLY;
 }
 
-// Verifica se keymod contém APENAS o valor especificado (sem outros flags)
-// value pode ser uma combinação de flags (ex: KEYMOD_FN_RCTL | KEYMOD_FN_RALT)
-bool keymod_is_only_value(keymod_t keymod, keymod_t value) {
-    return (keymod == value);
+// Verifica se keymod é exatamente igual a other (igualdade exata)
+// other pode ser uma combinação de flags (ex: KEYMOD_FN_RCTL | KEYMOD_FN_RALT)
+bool keymod_equals(keymod_t keymod, keymod_t other) {
+    return (keymod == other);
 }
 
-// Verifica se keymod contém o valor especificado (pode ter outros flags também)
-// value pode ser uma combinação de flags (ex: KEYMOD_FN_ONLY | KEYMOD_FN_RCTL)
-// Retorna true se keymod corresponde a qualquer um dos valores em value
-bool keymod_has_value(keymod_t keymod, keymod_t value) {
-    if (value == KEYMOD_NONE) {
-        return (keymod == KEYMOD_NONE);
-    }
-    // Verifica se keymod corresponde a qualquer um dos flags em value
-    // Exemplo: se value = KEYMOD_FN_ONLY | KEYMOD_FN_RCTL, retorna true se keymod for KEYMOD_FN_ONLY ou KEYMOD_FN_RCTL
-    return (keymod & value) != 0;
+// Verifica se keymod tem interseção com other (pelo menos uma flag em comum)
+// other pode ser uma combinação de flags (ex: KEYMOD_FN_ONLY | KEYMOD_FN_RCTL)
+// Retorna true se keymod possui pelo menos uma das flags ativas que other tem ativas
+// Útil para verificar se um valor único (keymod) está contido em uma máscara (other)
+// Exemplo: keymod = KEYMOD_FN_ONLY, other = KEYMOD_FN_ONLY | KEYMOD_FN_RCTL → retorna true
+bool keymod_intersects(keymod_t keymod, keymod_t other) {
+    // Verifica se keymod possui pelo menos uma das flags que other tem
+    // Exemplo: se other = KEYMOD_FN_ONLY | KEYMOD_FN_RCTL, retorna true se keymod tiver qualquer uma das flags
+    return (keymod & other) != 0;
 }
 
-// Verifica se keymod está aceito para position
-bool keymod_is_accepted_for_position(keymod_t keymod, keymod_t accepted_keymods) {
-    if (accepted_keymods == KEYMOD_NONE) {
-        return true; // Aceita qualquer keymod
-    }
-    // Verifica se há interseção entre keymod e accepted_keymods
-    return keymod_has_value(keymod, accepted_keymods);
-}
-
-// Verifica se keymod está aceito para custom
-bool keymod_is_accepted_for_custom(keymod_t keymod, keymod_t accepted_keymods) {
-    if (accepted_keymods == KEYMOD_NONE) {
-        return true; // Aceita qualquer keymod
-    }
-    
-    // KEYMOD_CUSTOM_MASK aceita KEYMOD_NONE, KEYMOD_FN_RCTL ou KEYMOD_FN_RALT
-    keymod_t custom_mask = KEYMOD_NONE | KEYMOD_FN_RCTL | KEYMOD_FN_RALT;
-    
-    if (accepted_keymods == custom_mask) {
-        // É KEYMOD_CUSTOM_MASK, verifica se keymod corresponde a algum dos valores aceitos
-        return keymod_has_value(keymod, custom_mask);
-    }
-    
-    // É um keymod único ou combinação, verifica se há interseção
-    return keymod_has_value(keymod, accepted_keymods);
-}

@@ -1,17 +1,14 @@
 #include "settings.h"
 
-#include "customs.h"  // Para KEY_CUSTOM_UNASSOCIATED e CUSTOMS_T_COUNT
+#include "custom_behaviors.h"  // Para CUSTOM_BEHAVIOR_UNASSOCIATED e CUSTOM_BEHAVIORS_T_COUNT
 #include "profile.h"
 #include "persist.h"
+#include "event_bus.h"
 
 #include <string.h>
 
 // ===== Callbacks para Mudança de Profile =====
-
-// Array de callbacks indexado pela posição de cada customs_t
-// Tamanho igual ao número de elementos em customs_t (4)
-static settings_profile_changed_callback_t profile_changed_callbacks[SETTINGS_MAX_PROFILE_CHANGED_CALLBACKS] = {NULL};
-static uint8_t profile_changed_callback_count = 0;
+// Migrado para Event Bus - use event_bus_subscribe_profile_changed() em vez de settings_register_profile_changed_callback()
 
 // ===== Funções Auxiliares =====
 
@@ -24,7 +21,7 @@ static void profiles_init_defaults(profiles_t* profiles) {
     for (uint8_t i = 0; i < PROFILES_COUNT; i++) {
         profiles->profiles[i].active = (i == PROFILES_DEFAULT_INDEX);
         profiles->profiles[i].index = i;
-        memset(profiles->profiles[i].behaviors, KEY_CUSTOM_UNASSOCIATED, sizeof(profiles->profiles[i].behaviors));
+        memset(profiles->profiles[i].behaviors, CUSTOM_BEHAVIOR_UNASSOCIATED, sizeof(profiles->profiles[i].behaviors));
     }
 }
 
@@ -65,6 +62,9 @@ bool settings_init(void) {
         profiles_init_defaults(&working.profiles);
     }
 
+    // Anuncia que settings foram carregados com sucesso
+    event_bus_publish_void(EVENT_SETTINGS_LOADED);
+
     return true;
 }
 
@@ -77,19 +77,7 @@ void settings_reset_to_defaults(void) {
 }
 
 // ===== Sistema de Callbacks =====
-
-bool settings_register_profile_changed_callback(settings_profile_changed_callback_t callback) {
-    if (callback == NULL) {
-        return false;
-    }
-    
-    if (profile_changed_callback_count >= SETTINGS_MAX_PROFILE_CHANGED_CALLBACKS) {
-        return false; // Não há mais espaço
-    }
-    
-    profile_changed_callbacks[profile_changed_callback_count++] = callback;
-    return true;
-}
+// Migrado para Event Bus
 
 void settings_set_active_profile(uint8_t index) {
     if (index >= PROFILES_COUNT) {
@@ -113,11 +101,13 @@ void settings_set_active_profile(uint8_t index) {
     // Obtém o novo profile ativo (sempre válido após profile_set_active_profile)
     profile_t* new_profile = profile_get_active_profile(&working->profiles);
     
-    // Notifica todos os callbacks registrados
-    for (uint8_t i = 0; i < profile_changed_callback_count; i++) {
-        if (profile_changed_callbacks[i] != NULL) {
-            profile_changed_callbacks[i](old_profile, new_profile);
+    // Dispara Event Bus
+    event_data_t data = {
+        .profile_changed = {
+            .old_profile = old_profile,
+            .new_profile = new_profile
         }
-    }
+    };
+    event_bus_publish(EVENT_PROFILE_CHANGED, &data);
 }
 

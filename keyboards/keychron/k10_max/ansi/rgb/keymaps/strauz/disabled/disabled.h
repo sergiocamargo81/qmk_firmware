@@ -15,7 +15,7 @@ enum {
 // ===== Funções =====
 
 // Processa eventos de teclas disabled
-bool disabled_process_record_user(keyrecord_t *record, keymod_t keymod);
+bool disabled_process_key(base_key_t* key, bool pressed, keymod_t keymod);
 
 // Atualiza indicadores RGB das teclas disabled (pulsação em branco)
 void disabled_update_indicators(void);
@@ -27,7 +27,7 @@ void disabled_update_indicators(void);
 void disabled_init_early_hooks(void);
 
 // Registra hooks QMK para este módulo
-// Deve ser chamado durante keyboard_post_init_user (antes de hooks_keyboard_post_init_dispatch)
+// Deve ser chamado durante keyboard_post_init_user (antes de event_bus_publish_void(EVENT_KEYBOARD_POST_INIT))
 void disabled_init_hooks(void);
 
 #endif // DISABLED_DISABLED_H
