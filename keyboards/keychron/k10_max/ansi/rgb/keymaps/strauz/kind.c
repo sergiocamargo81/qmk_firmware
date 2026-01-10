@@ -101,66 +101,66 @@ static custom_t g_custom_pool[CUSTOM_COUNT] = {
     {.kind = KIND_CUSTOM, .row = 5, .col = 6, .keycode = KC_SPC, .led_index = 98, .accepted_keymods = KEYMOD_CUSTOM_MASK, .process_key = NULL, .state = 0, .persist_index = 36, .timer = 0},  // 36 (KC_SPC)
 };
 
-// Pool de disabled: teclas que não são position, custom, modifier nem bold
+// Pool de unused: teclas que não são position, custom, modifier nem bold
 // Led_index usados: positions (36, 54, 56, 57, 58, 76, 77, 78, 92, 93, 94, 106) + customs (19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 98) + modifiers (39, 59, 79, 90, 95, 96, 97, 99, 100, 101, 102) + bold (0, 32, 71)
-static disabled_t g_disabled_pool[DISABLED_COUNT] = {
+static unused_t g_unused_pool[UNUSED_COUNT] = {
     // ESC removido (agora é bold, led_index 0)
-    {.kind = KIND_DISABLED, .row = 0, .col = 2, .keycode = KC_F1, .led_index = 1, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 3, .keycode = KC_F2, .led_index = 2, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 4, .keycode = KC_F3, .led_index = 3, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 5, .keycode = KC_F4, .led_index = 4, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 6, .keycode = KC_F5, .led_index = 5, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 7, .keycode = KC_F6, .led_index = 6, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 8, .keycode = KC_F7, .led_index = 7, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 9, .keycode = KC_F8, .led_index = 8, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 10, .keycode = KC_F9, .led_index = 9, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 11, .keycode = KC_F10, .led_index = 10, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 12, .keycode = KC_F11, .led_index = 11, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 13, .keycode = KC_F12, .led_index = 12, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 14, .keycode = KC_PSCR, .led_index = 13, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 15, .keycode = 32265, .led_index = 14, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},  // KC_CTANA (custom code)
-    {.kind = KIND_DISABLED, .row = 0, .col = 16, .keycode = 30753, .led_index = 15, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},  // UG_NEXT (custom code)
-    {.kind = KIND_DISABLED, .row = 0, .col = 17, .keycode = KC_TRANSPARENT, .led_index = 16, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 18, .keycode = KC_TRANSPARENT, .led_index = 17, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 0, .col = 19, .keycode = KC_TRANSPARENT, .led_index = 18, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 2, .keycode = KC_F1, .led_index = 1, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 3, .keycode = KC_F2, .led_index = 2, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 4, .keycode = KC_F3, .led_index = 3, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 5, .keycode = KC_F4, .led_index = 4, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 6, .keycode = KC_F5, .led_index = 5, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 7, .keycode = KC_F6, .led_index = 6, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 8, .keycode = KC_F7, .led_index = 7, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 9, .keycode = KC_F8, .led_index = 8, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 10, .keycode = KC_F9, .led_index = 9, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 11, .keycode = KC_F10, .led_index = 10, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 12, .keycode = KC_F11, .led_index = 11, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 13, .keycode = KC_F12, .led_index = 12, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 14, .keycode = KC_PSCR, .led_index = 13, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 15, .keycode = 32265, .led_index = 14, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},  // KC_CTANA (custom code)
+    {.kind = KIND_UNUSED, .row = 0, .col = 16, .keycode = 30753, .led_index = 15, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},  // UG_NEXT (custom code)
+    {.kind = KIND_UNUSED, .row = 0, .col = 17, .keycode = KC_TRANSPARENT, .led_index = 16, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 18, .keycode = KC_TRANSPARENT, .led_index = 17, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 0, .col = 19, .keycode = KC_TRANSPARENT, .led_index = 18, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     // 19 usado (custom)
     // 20-31 usados (custom)
     // BACKSPACE removido (agora é bold, led_index 32)
-    {.kind = KIND_DISABLED, .row = 1, .col = 14, .keycode = KC_INS, .led_index = 33, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 1, .col = 15, .keycode = KC_HOME, .led_index = 34, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 1, .col = 16, .keycode = KC_PGUP, .led_index = 35, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 1, .col = 14, .keycode = KC_INS, .led_index = 33, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 1, .col = 15, .keycode = KC_HOME, .led_index = 34, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 1, .col = 16, .keycode = KC_PGUP, .led_index = 35, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     // 36 usado (position)
-    {.kind = KIND_DISABLED, .row = 1, .col = 18, .keycode = KC_PSLS, .led_index = 37, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 1, .col = 19, .keycode = KC_PAST, .led_index = 38, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 1, .col = 18, .keycode = KC_PSLS, .led_index = 37, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 1, .col = 19, .keycode = KC_PAST, .led_index = 38, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     // TAB removido (agora é bold, led_index 39)
     // 40-52 usados (custom)
-    {.kind = KIND_DISABLED, .row = 2, .col = 14, .keycode = KC_DEL, .led_index = 53, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 2, .col = 14, .keycode = KC_DEL, .led_index = 53, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     // 54 usado (position)
-    {.kind = KIND_DISABLED, .row = 2, .col = 16, .keycode = KC_PGDN, .led_index = 55, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 2, .col = 16, .keycode = KC_PGDN, .led_index = 55, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     // 56-58 usados (position)
     // LSFT(KC_TAB) removido (agora é bold, led_index 59)
     // 60-70 usados (custom)
     // ENTER removido (agora é bold, led_index 71)
-    {.kind = KIND_DISABLED, .row = 3, .col = 13, .keycode = KC_TRANSPARENT, .led_index = 72, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 3, .col = 14, .keycode = KC_PMNS, .led_index = 73, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 3, .col = 15, .keycode = KC_PPLS, .led_index = 74, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 3, .col = 16, .keycode = KC_PENT, .led_index = 75, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 3, .col = 13, .keycode = KC_TRANSPARENT, .led_index = 72, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 3, .col = 14, .keycode = KC_PMNS, .led_index = 73, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 3, .col = 15, .keycode = KC_PPLS, .led_index = 74, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 3, .col = 16, .keycode = KC_PENT, .led_index = 75, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     // 76-78 usados (position)
     // LSHIFT removido (agora é bold, led_index 79)
     // 80-89 usados (custom)
     // 90 usado (modifier - RSFT)
-    {.kind = KIND_DISABLED, .row = 4, .col = 15, .keycode = KC_UP, .led_index = 91, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 4, .col = 15, .keycode = KC_UP, .led_index = 91, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     // 92-94 usados (position)
     // LCONTROL, LWIN, LALT removidos (agora são bold, led_index 95, 96, 97)
     // 98 usado (custom)
     // 99 usado (modifier - RALT)
     // RWIN removido (agora é bold, led_index 100)
     // 102 usado (modifier - RCTL)
-    {.kind = KIND_DISABLED, .row = 5, .col = 14, .keycode = KC_LEFT, .led_index = 103, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 5, .col = 15, .keycode = KC_DOWN, .led_index = 104, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_DISABLED, .row = 5, .col = 16, .keycode = KC_RGHT, .led_index = 105, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 5, .col = 14, .keycode = KC_LEFT, .led_index = 103, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 5, .col = 15, .keycode = KC_DOWN, .led_index = 104, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 5, .col = 16, .keycode = KC_RGHT, .led_index = 105, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     // 106 usado (position)
-    {.kind = KIND_DISABLED, .row = 5, .col = 19, .keycode = KC_PDOT, .led_index = 107, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
+    {.kind = KIND_UNUSED, .row = 5, .col = 19, .keycode = KC_PDOT, .led_index = 107, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
 };
 
 // Pool de modifiers: RSHIFT, RALT, FN, RCTRL, TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
@@ -172,15 +172,15 @@ static modifier_t g_modifier_pool[MODIFIER_COUNT] = {
     {.kind = KIND_MODIFIER, .row = 5, .col = 13, .keycode = KC_RCTL, .led_index = 102, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},  // RCTL
 };
 
-// Pool de disabled_modifiers: TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
-static others_t g_disabled_modifiers_pool[DISABLED_MODIFIERS_COUNT] = {
-    {.kind = KIND_DISABLED_MODIFIERS, .row = 2, .col = 0, .keycode = KC_TAB, .led_index = 39, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},     // TAB
-    {.kind = KIND_DISABLED_MODIFIERS, .row = 3, .col = 0, .keycode = LSFT(KC_TAB), .led_index = 59, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0}, // LSFT(KC_TAB)
-    {.kind = KIND_DISABLED_MODIFIERS, .row = 4, .col = 0, .keycode = KC_LSFT, .led_index = 79, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},    // LSHIFT
-    {.kind = KIND_DISABLED_MODIFIERS, .row = 5, .col = 0, .keycode = KC_LCTL, .led_index = 95, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},    // LCONTROL
-    {.kind = KIND_DISABLED_MODIFIERS, .row = 5, .col = 1, .keycode = KC_LWIN, .led_index = 96, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},    // LWIN
-    {.kind = KIND_DISABLED_MODIFIERS, .row = 5, .col = 2, .keycode = KC_LALT, .led_index = 97, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},    // LALT
-    {.kind = KIND_DISABLED_MODIFIERS, .row = 5, .col = 11, .keycode = KC_RWIN, .led_index = 100, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},  // RWIN
+// Pool de unused_modifiers: TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
+static unused_modifier_t g_unused_modifiers_pool[UNUSED_MODIFIERS_COUNT] = {
+    {.kind = KIND_UNUSED_MODIFIERS, .row = 2, .col = 0, .keycode = KC_TAB, .led_index = 39, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},     // TAB
+    {.kind = KIND_UNUSED_MODIFIERS, .row = 3, .col = 0, .keycode = LSFT(KC_TAB), .led_index = 59, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0}, // LSFT(KC_TAB)
+    {.kind = KIND_UNUSED_MODIFIERS, .row = 4, .col = 0, .keycode = KC_LSFT, .led_index = 79, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},    // LSHIFT
+    {.kind = KIND_UNUSED_MODIFIERS, .row = 5, .col = 0, .keycode = KC_LCTL, .led_index = 95, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},    // LCONTROL
+    {.kind = KIND_UNUSED_MODIFIERS, .row = 5, .col = 1, .keycode = KC_LWIN, .led_index = 96, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},    // LWIN
+    {.kind = KIND_UNUSED_MODIFIERS, .row = 5, .col = 2, .keycode = KC_LALT, .led_index = 97, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},    // LALT
+    {.kind = KIND_UNUSED_MODIFIERS, .row = 5, .col = 11, .keycode = KC_RWIN, .led_index = 100, .accepted_keymods = KEYMOD_ALL, .process_key = NULL, .state = 0},  // RWIN
 };
 
 // Pool de bold: ESC, ENTER, BACKSPACE
@@ -285,10 +285,10 @@ void kind_iterate_customs(bool (*callback)(custom_t* custom, void* user_data), v
     }
 }
 
-// Itera sobre pool de disabled
-void kind_iterate_disabled(bool (*callback)(disabled_t* disabled, void* user_data), void* user_data) {
-    for (uint8_t i = 0; i < DISABLED_COUNT; i++) {
-        if (!callback(&g_disabled_pool[i], user_data)) return;
+// Itera sobre pool de unused
+void kind_iterate_unused(bool (*callback)(unused_t* unused, void* user_data), void* user_data) {
+    for (uint8_t i = 0; i < UNUSED_COUNT; i++) {
+        if (!callback(&g_unused_pool[i], user_data)) return;
     }
 }
 
@@ -306,10 +306,10 @@ void kind_iterate_bold(bool (*callback)(bold_t* bold, void* user_data), void* us
     }
 }
 
-// Itera sobre pool de disabled_modifiers
-void kind_iterate_disabled_modifiers(bool (*callback)(others_t* disabled_modifier, void* user_data), void* user_data) {
-    for (uint8_t i = 0; i < DISABLED_MODIFIERS_COUNT; i++) {
-        if (!callback(&g_disabled_modifiers_pool[i], user_data)) return;
+// Itera sobre pool de unused_modifiers
+void kind_iterate_unused_modifiers(bool (*callback)(unused_modifier_t* unused_modifier, void* user_data), void* user_data) {
+    for (uint8_t i = 0; i < UNUSED_MODIFIERS_COUNT; i++) {
+        if (!callback(&g_unused_modifiers_pool[i], user_data)) return;
     }
 }
 
@@ -391,21 +391,21 @@ void kind_init_grid(void) {
         }
     }
     
-    // Preenche grid com disabled_modifiers (sobrescreve positions, customs, modifiers e bold se houver colisão)
-    for (uint8_t i = 0; i < DISABLED_MODIFIERS_COUNT; i++) {
-        others_t* disabled_modifier = &g_disabled_modifiers_pool[i];
-        if (in_bounds(disabled_modifier->row, disabled_modifier->col)) {
+    // Preenche grid com unused_modifiers (sobrescreve positions, customs, modifiers e bold se houver colisão)
+    for (uint8_t i = 0; i < UNUSED_MODIFIERS_COUNT; i++) {
+        unused_modifier_t* unused_modifier = &g_unused_modifiers_pool[i];
+        if (in_bounds(unused_modifier->row, unused_modifier->col)) {
             // Registra no grid (sobrescreve profile, numlock, persistence, custom, modifier e bold se houver colisão)
-            g_grid[disabled_modifier->row][disabled_modifier->col] = (base_key_t*)disabled_modifier;
+            g_grid[unused_modifier->row][unused_modifier->col] = (base_key_t*)unused_modifier;
         }
     }
     
-    // Preenche grid com disabled (sobrescreve profiles, numlock, persistence, customs, modifiers, bold e disabled_modifiers se houver colisão)
-    for (uint8_t i = 0; i < DISABLED_COUNT; i++) {
-        disabled_t* disabled = &g_disabled_pool[i];
-        if (in_bounds(disabled->row, disabled->col)) {
+    // Preenche grid com unused (sobrescreve profiles, numlock, persistence, customs, modifiers, bold e unused_modifiers se houver colisão)
+    for (uint8_t i = 0; i < UNUSED_COUNT; i++) {
+        unused_t* unused = &g_unused_pool[i];
+        if (in_bounds(unused->row, unused->col)) {
             // Registra no grid (sobrescreve position, custom e modifier se houver colisão)
-            g_grid[disabled->row][disabled->col] = (base_key_t*)disabled;
+            g_grid[unused->row][unused->col] = (base_key_t*)unused;
         }
     }
 }
@@ -432,12 +432,12 @@ bool kind_register_function(uint8_t row, uint8_t col, process_key_t function) {
     } else if (entry->kind == KIND_MODIFIER) {
         modifier_t* modifier = (modifier_t*)entry;
         modifier->process_key = function;
-    } else if (entry->kind == KIND_DISABLED_MODIFIERS) {
-        others_t* disabled_modifier = (others_t*)entry;
-        disabled_modifier->process_key = function;
-    } else if (entry->kind == KIND_DISABLED) {
-        disabled_t* disabled = (disabled_t*)entry;
-        disabled->process_key = function;
+    } else if (entry->kind == KIND_UNUSED_MODIFIERS) {
+        unused_modifier_t* unused_modifier = (unused_modifier_t*)entry;
+        unused_modifier->process_key = function;
+    } else if (entry->kind == KIND_UNUSED) {
+        unused_t* unused = (unused_t*)entry;
+        unused->process_key = function;
     } else if (entry->kind == KIND_BOLD) {
         bold_t* bold = (bold_t*)entry;
         bold->process_key = function;

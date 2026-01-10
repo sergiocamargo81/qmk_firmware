@@ -15,13 +15,14 @@
 #include "profiles/profiles.h"
 #include "persistence/persistence.h"
 #include "modifiers/modifiers.h"
-#include "disabled/disabled.h"
+#include "unused/unused.h"
 #include "bold/bold.h"
-#include "disabled_modifiers/disabled_modifiers.h"
+#include "unused_modifiers/unused_modifiers.h"
 #include "settings.h"
 #include "profile.h"
 #include "custom_behaviors.h"
 #include "event_bus.h"
+#include "led_idle/led_idle.h"
 
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -50,7 +51,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (record->event.type != KEY_EVENT) {
         return true;
     }
-    
+
+    // Notifica atividade do teclado (para sistema de timeout de LEDs)
+    event_bus_publish_void(EVENT_ACTIVITY_DETECTED);
+
     // Obtém posição (row, col) do evento
     uint8_t row = record->event.key.row;
     uint8_t col = record->event.key.col;
@@ -99,8 +103,9 @@ void keyboard_pre_init_user(void) {
     numlock_init_early_hooks();
     profiles_init_early_hooks();
     persistence_init_early_hooks();
-    disabled_init_early_hooks();
+    unused_init_early_hooks();
     bold_init_early_hooks();
+    led_idle_init_early_hooks();
 }
 
 // ===== 2. eeconfig_init_user =====
@@ -121,11 +126,15 @@ void keyboard_post_init_user(void) {
 
     // Inicializa modifiers primeiro (outros módulos podem registrar callbacks)
     modifiers_init();
-    disabled_modifiers_init();
+    unused_modifiers_init();
+
+    // Inicializa led_idle
+    led_idle_init();
 
     // Registra hooks de todos os módulos (exceto eeconfig_init, já registrados em keyboard_pre_init_user)
     modifiers_init_hooks();
-    disabled_modifiers_init_hooks();
+    unused_modifiers_init_hooks();
+    led_idle_init_hooks();
     custom_init_hooks();
     hold_init_hooks();
     toggle_init_hooks();
@@ -133,7 +142,7 @@ void keyboard_post_init_user(void) {
     numlock_init_hooks();
     profiles_init_hooks();
     persistence_init_hooks();
-    disabled_init_hooks();
+    unused_init_hooks();
     bold_init_hooks();
 
     // Inicializa settings APÓS todos os hooks serem registrados
@@ -173,6 +182,19 @@ void matrix_scan_user(void) {
 // Hook executado PERIODICAMENTE durante renderização RGB
 // Usado para atualizar LEDs dos módulos (indicadores de estado)
 bool rgb_matrix_indicators_user(void) {
+    led_idle_state_t led_state = led_idle_get_state();
+
+    // Se LEDs estiverem desligados devido ao timeout, não renderiza nada
+    if (led_state == LED_STATE_OFF) {
+        return false; // Não renderiza cores customizadas nem padrão
+    }
+
+    // Se LEDs estiverem no modo padrão devido ao timeout, usa cores padrão
+    if (led_state == LED_STATE_DEFAULT) {
+        return true; // Permite cores padrão do teclado
+    }
+
+    // Estado normal: LED_STATE_CUSTOM
     // Se o profile ativo estiver vazio, não renderiza cores dos módulos
     // Isso permite que as cores padrão do teclado sejam exibidas
     if (profile_is_active_profile_empty()) {

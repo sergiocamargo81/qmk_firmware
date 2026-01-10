@@ -23,7 +23,7 @@ uint8_t hold_enabled_keys_bitfield[6] = {0};
 
 // ===== Estado de FN =====
 
-// Rastreia keymod atual (para mudar cor das teclas em WAITING)
+// Rastreia keymod atual (para mudar cor das teclas em HOLD_WAITING)
 static keymod_t hold_fn_keymod = KEYMOD_NONE;
 
 // ===== Funções Auxiliares =====
@@ -59,9 +59,9 @@ static void hold_custom_behavior_added(const event_t* event) {
     custom_t* custom = hold_get_key_by_position(row, col);
     if (custom) {
         // Inicializa estado apenas para esta tecla
-        custom->state = WAITING;
+        custom->state = HOLD_WAITING;
         // Atualiza o LED imediatamente após a associação
-        // O LED ficará branco pulsante (WAITING) ou azul pulsante se FN pressionado
+        // O LED ficará branco pulsante (HOLD_WAITING) ou azul pulsante se FN pressionado
         // A pulsação será aplicada em update_indicators()
         // Inicializa com cor apropriada baseada no estado de FN
         uint8_t brightness = calculate_pulse_brightness();
@@ -92,7 +92,7 @@ static void hold_custom_behavior_changed_handler(const event_t* event) {
     // Se passou a ser HOLD
     if (new_behavior == CUSTOM_BEHAVIOR_HOLD) {
         // Inicializa estado para esta tecla
-        custom->state = WAITING;
+        custom->state = HOLD_WAITING;
         // Handler já foi registrado na inicialização - não precisa registrar novamente
         // Atualiza LEDs
         update_indicators();
@@ -100,7 +100,7 @@ static void hold_custom_behavior_changed_handler(const event_t* event) {
     // Se deixou de ser HOLD
     else if (old_behavior == CUSTOM_BEHAVIOR_HOLD) {
         // Remove estado HOLD desta tecla - volta ao estado inicial
-        custom->state = WAITING;
+        custom->state = HOLD_WAITING;
         // Se nenhum custom tem HOLD, poderíamos desregistrar handler, mas mantemos para simplicidade
         // Atualiza LEDs
         update_indicators();
@@ -143,20 +143,20 @@ void update_hold_states(void) {
         if (custom->custom_behavior != CUSTOM_BEHAVIOR_HOLD) continue;
 
         switch (custom->state) {
-            case PRESSING: {
-                if (timer_elapsed32(custom->timer) >= CUSTOM_DELAY) {
-                    custom->state = FIRING; custom->timer = now; tap_code(custom->keycode);
+            case HOLD_PRESSING: {
+                if (timer_elapsed32(custom->timer) >= HOLD_DELAY) {
+                    custom->state = HOLD_FIRING; custom->timer = now; tap_code(custom->keycode);
                 }
                 break;
             }
-            case FIRING: {
-                if (timer_elapsed32(custom->timer) >= CUSTOM_INTERVAL) {
+            case HOLD_FIRING: {
+                if (timer_elapsed32(custom->timer) >= HOLD_INTERVAL) {
                     tap_code(custom->keycode); custom->timer = now;
                 }
                 break;
             }
-            case RESTING: {
-                if (timer_elapsed32(custom->timer) >= LED_DEACTIVATE_TIME) custom->state = WAITING;
+            case HOLD_RESTING: {
+                if (timer_elapsed32(custom->timer) >= HOLD_LED_DEACTIVATE_TIME) custom->state = HOLD_WAITING;
                 break;
             }
             default: break;
@@ -167,14 +167,14 @@ void update_hold_states(void) {
 void activate_hold_key(custom_t *custom) {
     if (!custom) return;
     uint32_t now = timer_read32();
-    custom->state = PRESSING; custom->timer = now;
+        custom->state = HOLD_PRESSING; custom->timer = now;
 }
 
 void deactivate_hold_key(custom_t *custom) {
     if (!custom) return;
     uint32_t now = timer_read32();
-    if (custom->state == FIRING) { custom->state = RESTING; custom->timer = now; return; }
-    if (custom->state == PRESSING) { custom->state = WAITING; return; }
+    if (custom->state == HOLD_FIRING) { custom->state = HOLD_RESTING; custom->timer = now; return; }
+    if (custom->state == HOLD_PRESSING) { custom->state = HOLD_WAITING; return; }
 }
 
 void sync_enabled_states(void) {
@@ -185,11 +185,11 @@ void sync_enabled_states(void) {
         bool is_enabled = is_key_enabled(custom);
         if (is_enabled) {
             // Se está habilitado como HOLD, garante que tenha um estado válido
-            // Se ainda não tem estado válido, inicializa como WAITING
-            if (custom->state >= RESTING + 1) { // Estado inválido (era DISABLED)
-                custom->state = WAITING;
+            // Se ainda não tem estado válido, inicializa como HOLD_WAITING
+            if (custom->state >= HOLD_RESTING + 1) { // Estado inválido (era DISABLED)
+                custom->state = HOLD_WAITING;
             }
-            // Se já estava em estado válido (WAITING, PRESSING, FIRING, RESTING), mantém
+            // Se já estava em estado válido (HOLD_WAITING, HOLD_PRESSING, HOLD_FIRING, HOLD_RESTING), mantém
         }
         // Se não está habilitado como HOLD, não faz nada - sai do controle do módulo
     }
@@ -208,26 +208,26 @@ void update_indicators(void) {
             // Esta tecla está associada a HOLD
             // Atualiza LED baseado no estado
             switch (custom->state) {
-                    case WAITING: {
+                    case HOLD_WAITING: {
                         // Estado inicial: azul pulsante
                         uint8_t brightness = calculate_pulse_brightness();
                         color_rgb_t blue = color_apply_brightness(COLOR_BLUE, brightness);
                         rgb_matrix_set_color(custom->led_index, blue.r, blue.g, blue.b);
                         break;
                     }
-                    case PRESSING: {
+                    case HOLD_PRESSING: {
                         // Tecla está pressionada: verde contínuo
                         color_rgb_t green = color_get_rgb(COLOR_GREEN);
                         rgb_matrix_set_color(custom->led_index, green.r, green.g, green.b);
                         break;
                     }
-                    case FIRING: {
+                    case HOLD_FIRING: {
                         // Disparo: vermelho contínuo
                         color_rgb_t red = color_get_rgb(COLOR_RED);
                         rgb_matrix_set_color(custom->led_index, red.r, red.g, red.b);
                         break;
                     }
-                    case RESTING: {
+                    case HOLD_RESTING: {
                         // Após soltar: amarelo contínuo por um tempo
                         color_rgb_t yellow = color_get_rgb(COLOR_YELLOW);
                         rgb_matrix_set_color(custom->led_index, yellow.r, yellow.g, yellow.b);
@@ -252,7 +252,7 @@ void reset_all_enabled_keys(void) {
     for (uint8_t i = 0; i < CUSTOM_COUNT; i++) {
         custom_t* custom = kind_get_custom_by_index(i);
         if (custom) {
-            custom->state = WAITING;
+            custom->state = HOLD_WAITING;
         }
     }
 }

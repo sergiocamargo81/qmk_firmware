@@ -119,6 +119,11 @@ bool event_bus_subscribe_fn_state_changed(event_handler_t handler) {
     return event_bus_subscribe(EVENT_FN_STATE_CHANGED, handler);
 }
 
+bool event_bus_subscribe_activity_detected(event_handler_t handler) {
+    if (handler == NULL) return false;
+    return event_bus_subscribe(EVENT_ACTIVITY_DETECTED, handler);
+}
+
 // ===== Debug/Utilidades =====
 
 uint8_t event_bus_get_handler_count(event_type_t type) {
@@ -134,6 +139,7 @@ const char* event_bus_get_event_name(event_type_t type) {
         case EVENT_MATRIX_SCAN: return "MATRIX_SCAN";
         case EVENT_RGB_INDICATORS: return "RGB_INDICATORS";
         case EVENT_EECONFIG_INIT: return "EECONFIG_INIT";
+        case EVENT_ACTIVITY_DETECTED: return "ACTIVITY_DETECTED";
         case EVENT_SETTINGS_LOADED: return "SETTINGS_LOADED";
         case EVENT_PROFILE_CHANGED: return "PROFILE_CHANGED";
         case EVENT_FN_STATE_CHANGED: return "FN_STATE_CHANGED";

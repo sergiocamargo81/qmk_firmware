@@ -18,19 +18,20 @@ typedef enum {
     EVENT_MATRIX_SCAN,             // Executado periodicamente no loop principal
     EVENT_RGB_INDICATORS,          // Executado durante renderização RGB
     EVENT_EECONFIG_INIT,           // Executado quando EEPROM é inicializada
-    
+    EVENT_ACTIVITY_DETECTED,       // Atividade do teclado detectada (qualquer tecla pressionada/liberada)
+
     // ===== Eventos de Settings/Profile =====
     EVENT_SETTINGS_LOADED,         // Settings carregados da EEPROM
     EVENT_PROFILE_CHANGED,         // Profile ativo mudou (old_profile, new_profile)
 
     // ===== Eventos de Modifiers =====
     EVENT_FN_STATE_CHANGED,        // Estado de FN mudou (keymod_t)
-    
+
     // ===== Eventos de Custom Behaviors =====
     EVENT_CUSTOM_BEHAVIOR_ADDED,   // Behavior foi adicionado a uma tecla (row, col, behavior)
     EVENT_CUSTOM_BEHAVIOR_REMOVED, // Behavior foi removido de uma tecla (row, col, behavior)
     EVENT_CUSTOM_BEHAVIOR_CHANGED, // Behavior de tecla mudou (row, col, old_behavior, new_behavior)
-    
+
     // ===== Contador (deve ser o último) =====
     EVENT_COUNT
 } event_type_t;
@@ -113,6 +114,9 @@ bool event_bus_subscribe_profile_changed(event_handler_t handler);
 
 // Registra handler para fn_state_changed
 bool event_bus_subscribe_fn_state_changed(event_handler_t handler);
+
+// Registra handler para activity_detected
+bool event_bus_subscribe_activity_detected(event_handler_t handler);
 
 // ===== Inicialização =====
 

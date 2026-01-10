@@ -8,17 +8,14 @@
 #include "../../keymod.h"  // Para keymod_t
 
 // ===== Defines =====
-#define CUSTOM_DELAY 1500  // 1.5 segundos
-#define CUSTOM_INTERVAL 50
-#define LED_DEACTIVATE_TIME 5000
+#define TOGGLE_INTERVAL 50
 // Usa CUSTOM_COUNT de kind.h
 
 // ===== Tipos =====
 typedef uint8_t toggle_state_t;
 enum {
-    TOGGLE_OFF,
-    TOGGLE_ON,
-    TOGGLE_PRESSED
+    TOGGLE_WAITING,  // Verde pulsante, aguardando clique
+    TOGGLE_FIRING    // Vermelho contínuo, disparando automaticamente
 };
 
 // Usa custom_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, accepted_keymods, persist_index, process_key)
@@ -34,16 +31,9 @@ custom_t* toggle_get_key_by_position(uint8_t row, uint8_t col);
 custom_t* toggle_get_key_by_index(uint8_t persist_index);
 
 void toggle_update_states(void);
-
-void toggle_activate_key(custom_t *custom);
-void toggle_deactivate_key(custom_t *custom);
-
-void toggle_sync_enabled_states(void);
 void toggle_update_indicators(void);
 
 bool toggle_is_profile_mode_active(void);
-
-void toggle_reset_all_keys(void);
 
 // ===== Callback de Notificação de FN =====
 

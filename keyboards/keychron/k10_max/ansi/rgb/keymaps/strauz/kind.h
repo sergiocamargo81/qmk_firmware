@@ -24,10 +24,10 @@ typedef enum {
     KIND_NUMLOCK,
     KIND_PERSISTENCE,
     KIND_CUSTOM,
-    KIND_DISABLED,
+    KIND_UNUSED,
     KIND_MODIFIER,
     KIND_BOLD,
-    KIND_DISABLED_MODIFIERS
+    KIND_UNUSED_MODIFIERS
 } kind_t;
 
 // Header comum (deve ser o primeiro membro para dispatch)
@@ -100,7 +100,7 @@ typedef struct {
     custom_behaviors_t custom_behavior; // Cache do behavior atual (atualizado quando profile muda)
 } custom_t;
 
-// Para teclas desabilitadas: teclas que não são position nem custom
+// Para teclas não utilizadas: teclas que não são position nem custom
 // Campos relacionados ao base_key_t (podem ser acessados via cast para base_key_t*)
 typedef struct {
     kind_t kind;                // READONLY Tipo da tecla (relacionado ao base)
@@ -111,7 +111,7 @@ typedef struct {
     keymod_t accepted_keymods;  // READONLY Flags de keymod aceitos (relacionado ao base)
     process_key_t process_key; // Handler da posição (NULL se não tiver) (relacionado ao base)
     uint8_t state;              // Estado do módulo (uint8_t) (relacionado ao base)
-} disabled_t;
+} unused_t;
 
 // Para teclas modificadoras: RSHIFT, RALT, FN, RCTRL
 // Campos relacionados ao base_key_t (podem ser acessados via cast para base_key_t*)
@@ -139,7 +139,7 @@ typedef struct {
     uint8_t state;              // Estado do módulo (uint8_t) (relacionado ao base)
 } bold_t;
 
-// Para teclas modificadoras desabilitadas: TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
+// Para teclas modificadoras não utilizadas: TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
 // Campos relacionados ao base_key_t (podem ser acessados via cast para base_key_t*)
 typedef struct {
     kind_t kind;                // READONLY Tipo da tecla (relacionado ao base)
@@ -150,7 +150,7 @@ typedef struct {
     keymod_t accepted_keymods;  // READONLY Flags de keymod aceitos (relacionado ao base)
     process_key_t process_key;  // Handler da posição (NULL se não tiver) (relacionado ao base)
     uint8_t state;              // Estado do módulo (uint8_t) (relacionado ao base)
-} others_t;
+} unused_modifier_t;
 
 // ===== Defines =====
 
@@ -158,10 +158,10 @@ typedef struct {
 #define NUMLOCK_COUNT     1   // 1 numlock (KC_NUM)
 #define PERSISTENCE_COUNT 1   // 1 persistence (KC_END)
 #define CUSTOM_COUNT      48  // 48 teclas custom (persist_index 0-47)
-#define DISABLED_COUNT    34  // Teclas que não são profile, numlock, persistence, custom, modifier, bold nem disabled_modifiers
+#define UNUSED_COUNT    34  // Teclas que não são profile, numlock, persistence, custom, modifier, bold nem unused_modifiers
 #define MODIFIER_COUNT    4   // RSHIFT, RALT, FN, RCTRL
 #define BOLD_COUNT        3   // ESC, ENTER, BACKSPACE
-#define DISABLED_MODIFIERS_COUNT       7   // Disabled modifiers: TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
+#define UNUSED_MODIFIERS_COUNT       7   // Unused modifiers: TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
 
 // ===== API de Acesso =====
 
@@ -198,8 +198,8 @@ void kind_iterate_persistence(bool (*callback)(persistence_key_t* persistence, v
 // Itera sobre pool de customs
 void kind_iterate_customs(bool (*callback)(custom_t* custom, void* user_data), void* user_data);
 
-// Itera sobre pool de disabled
-void kind_iterate_disabled(bool (*callback)(disabled_t* disabled, void* user_data), void* user_data);
+// Itera sobre pool de unused
+void kind_iterate_unused(bool (*callback)(unused_t* unused, void* user_data), void* user_data);
 
 // Itera sobre pool de modifiers
 void kind_iterate_modifiers(bool (*callback)(modifier_t* modifier, void* user_data), void* user_data);
@@ -207,8 +207,8 @@ void kind_iterate_modifiers(bool (*callback)(modifier_t* modifier, void* user_da
 // Itera sobre pool de bold
 void kind_iterate_bold(bool (*callback)(bold_t* bold, void* user_data), void* user_data);
 
-// Itera sobre pool de disabled_modifiers
-void kind_iterate_disabled_modifiers(bool (*callback)(others_t* disabled_modifier, void* user_data), void* user_data);
+// Itera sobre pool de unused_modifiers
+void kind_iterate_unused_modifiers(bool (*callback)(unused_modifier_t* unused_modifier, void* user_data), void* user_data);
 
 // Itera sobre todas as entradas do grid
 void kind_iterate_grid(bool (*callback)(base_key_t* entry, void* user_data), void* user_data);

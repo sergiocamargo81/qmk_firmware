@@ -8,18 +8,18 @@
 #include "../../keymod.h"  // Para keymod_t
 
 // ===== Defines =====
-#define CUSTOM_DELAY 1500  // 1.5 segundos
-#define CUSTOM_INTERVAL 50
-#define LED_DEACTIVATE_TIME 5000
+#define HOLD_DELAY 500  // 0.5 segundos
+#define HOLD_INTERVAL 50
+#define HOLD_LED_DEACTIVATE_TIME 5000
 // Usa CUSTOM_COUNT de kind.h
 
 // ===== Tipos =====
 typedef uint8_t hold_state_t;
 enum {
-    WAITING,
-    PRESSING,
-    FIRING,
-    RESTING
+    HOLD_WAITING,
+    HOLD_PRESSING,
+    HOLD_FIRING,
+    HOLD_RESTING
 };
 
 // Usa custom_t diretamente da matrix (campos READONLY: base, row, col, keycode, led_index, accepted_keymods, persist_index, process_key)
