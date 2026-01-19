@@ -32,4 +32,4 @@ SRC += modifiers/modifiers.c
 SRC += unused/unused.c
 SRC += bold/bold.c
 SRC += unused_modifiers/unused_modifiers.c
-SRC += led_idle/led_idle.c
+SRC += leds/leds.c

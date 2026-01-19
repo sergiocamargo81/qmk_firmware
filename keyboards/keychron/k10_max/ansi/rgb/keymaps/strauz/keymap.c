@@ -22,7 +22,7 @@
 #include "profile.h"
 #include "custom_behaviors.h"
 #include "event_bus.h"
-#include "led_idle/led_idle.h"
+#include "leds/leds.h"
 
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -105,7 +105,7 @@ void keyboard_pre_init_user(void) {
     persistence_init_early_hooks();
     unused_init_early_hooks();
     bold_init_early_hooks();
-    led_idle_init_early_hooks();
+    leds_init_early_hooks();
 }
 
 // ===== 2. eeconfig_init_user =====
@@ -128,13 +128,13 @@ void keyboard_post_init_user(void) {
     modifiers_init();
     unused_modifiers_init();
 
-    // Inicializa led_idle
-    led_idle_init();
+    // Inicializa leds
+    leds_init();
 
     // Registra hooks de todos os módulos (exceto eeconfig_init, já registrados em keyboard_pre_init_user)
     modifiers_init_hooks();
     unused_modifiers_init_hooks();
-    led_idle_init_hooks();
+    leds_init_hooks();
     custom_init_hooks();
     hold_init_hooks();
     toggle_init_hooks();
@@ -182,28 +182,14 @@ void matrix_scan_user(void) {
 // Hook executado PERIODICAMENTE durante renderização RGB
 // Usado para atualizar LEDs dos módulos (indicadores de estado)
 bool rgb_matrix_indicators_user(void) {
-    led_idle_state_t led_state = led_idle_get_state();
-
-    // Se LEDs estiverem desligados devido ao timeout, não renderiza nada
-    if (led_state == LED_STATE_OFF) {
-        return false; // Não renderiza cores customizadas nem padrão
+    // Decide se deve mostrar cores dos módulos baseado no estado
+    if (leds_should_show_modules()) {
+        // Estado permite mostrar cores dos módulos
+        // Apenas sobrescreve LEDs com valores estipulados pelos módulos
+        // LEDs sem valores estipulados mantêm as cores padrão do sistema
+        event_bus_publish_void(EVENT_RGB_INDICATORS);
     }
-
-    // Se LEDs estiverem no modo padrão devido ao timeout, usa cores padrão
-    if (led_state == LED_STATE_DEFAULT) {
-        return true; // Permite cores padrão do teclado
-    }
-
-    // Estado normal: LED_STATE_CUSTOM
-    // Se o profile ativo estiver vazio, não renderiza cores dos módulos
-    // Isso permite que as cores padrão do teclado sejam exibidas
-    if (profile_is_active_profile_empty()) {
-        return true;
-    }
-
-    // Apenas sobrescreve LEDs com valores estipulados pelos módulos
-    // LEDs sem valores estipulados mantêm as cores padrão do sistema
-    event_bus_publish_void(EVENT_RGB_INDICATORS);
+    // Se não deve mostrar módulos, apenas usa cores padrão do teclado
 
     return true;
 }
