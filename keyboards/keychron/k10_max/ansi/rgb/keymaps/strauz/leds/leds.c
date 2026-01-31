@@ -10,8 +10,8 @@
 // ===== Defines =====
 
 // Tempos de timeout em milissegundos
-#define LEDS_TO_STOPPING_MS  (60 * 1000)   // 1 minuto para stopping
-#define LEDS_TO_SLEEPING_MS  (5 * 60 * 1000) // 5 minutos para sleeping
+#define LEDS_TO_STOPPING_MS  (5 * 60 * 1000)   // 5 minutos para stopping
+#define LEDS_TO_SLEEPING_MS  (10 * 60 * 1000) // 10 minutos para sleeping
 
 // ===== Estados Internos =====
 
