@@ -23,12 +23,18 @@ static bool unused_modifiers_initialized = false;
 
 // Callback para atualizar LED de um unused_modifier
 static bool unused_modifiers_update_led_callback(unused_modifier_t* unused_modifier, void* user_data) {
-    (void)user_data;
-    if (unused_modifier == NULL) return true;
 
-    // Todos os unused_modifiers: roxo contínuo sempre (não muda quando pressionada)
-    color_rgb_t purple = color_get_rgb(COLOR_PURPLE);
-    rgb_matrix_set_color(unused_modifier->led_index, purple.r, purple.g, purple.b);
+    // Verifica se a tecla está pressionada usando state
+    if (unused_modifier->state == UNUSED_MODIFIERS_PRESSED) {
+        // Tecla está pressionada: verde contínuo
+        color_rgb_t green = color_get_rgb(COLOR_GREEN);
+        rgb_matrix_set_color(unused_modifier->led_index, green.r, green.g, green.b);
+    } else {
+        // Tecla não está pressionada: roxo pulsante
+        uint8_t brightness = calculate_pulse_brightness();
+        color_rgb_t purple = color_apply_brightness(COLOR_PURPLE, brightness);
+        rgb_matrix_set_color(unused_modifier->led_index, purple.r, purple.g, purple.b);
+    }
 
     return true; // Continua iteração
 }
