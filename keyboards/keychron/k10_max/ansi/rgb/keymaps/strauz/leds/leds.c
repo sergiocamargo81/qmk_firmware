@@ -10,8 +10,8 @@
 // ===== Defines =====
 
 // Tempos de timeout em milissegundos
-#define LEDS_TO_STOPPING_MS  (5 * 60 * 1000)   // 5 minutos para stopping
-#define LEDS_TO_SLEEPING_MS  (10 * 60 * 1000) // 10 minutos para sleeping
+#define LEDS_TO_STOPPING_MS  (1 * 60 * 1000)   // 5 minutos para stopping
+#define LEDS_TO_SLEEPING_MS  (2 * 60 * 1000) // 10 minutos para sleeping
 
 // ===== Estados Internos =====
 
@@ -65,9 +65,9 @@ static bool profile_is_empty(void) {
 }
 
 // Atualiza o estado dos LEDs baseado no tempo de inatividade
-static void update_leds_state(void) {
+static bool update_leds_state(void) {
     if (!g_leds_initialized) {
-        return;
+        return false;
     }
 
     // Usa timer_elapsed32 para evitar problemas de overflow
@@ -85,7 +85,10 @@ static void update_leds_state(void) {
     // Só atualiza se o estado mudou
     if (new_state != g_leds_state) {
         g_leds_state = new_state;
+        return true;
     }
+
+    return false;
 }
 
 // ===== API Principal =====
@@ -137,17 +140,15 @@ bool leds_should_show_modules(void) {
 
 // Processamento periódico (chamado em matrix_scan_user)
 void leds_matrix_scan(void) {
-    update_leds_state();
-
-    // Gerenciar estado do RGB matrix baseado no estado atual
-    // Isso garante que funciona mesmo quando RGB matrix está desabilitado
-    if (g_leds_state == LEDS_SLEEPING) {
-        if (rgb_matrix_is_enabled()) {
-            rgb_matrix_disable();
-        }
-    } else {
-        if (!rgb_matrix_is_enabled()) {
-            rgb_matrix_enable();
-        }
+    leds_state_t previous_state = g_leds_state;
+    if (!update_leds_state()) {
+        return;
     }
+    leds_state_t new_state = g_leds_state;
+    if (previous_state == LEDS_STOPPING && new_state == LEDS_SLEEPING) {
+        rgb_matrix_set_flags(LED_FLAG_NONE);
+        rgb_matrix_set_color_all(0, 0, 0);
+        return;
+    }
+    rgb_matrix_set_flags(LED_FLAG_ALL);
 }
