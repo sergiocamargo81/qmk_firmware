@@ -112,15 +112,15 @@ static void update_modifier_leds(void) {
                 rgb_matrix_set_color(mod->led_index, purple.r, purple.g, purple.b);
             }
         } else if (mod == rctl_modifier) {
-            // RCTRL: azul quando FN+RCTRL está ativo, roxo contínuo quando pressionada, roxo pulsante quando não
+            // RCTRL: azul quando FN+RCTRL está ativo, verde contínuo quando pressionada, roxo pulsante quando não
             if (keymod_equals(fn_keymod_state, KEYMOD_FN_RCTL)) {
                 // FN+RCTRL: azul sólido (sobrepõe comportamento padrão)
                 color_rgb_t blue = color_get_rgb(COLOR_BLUE);
                 rgb_matrix_set_color(mod->led_index, blue.r, blue.g, blue.b);
             } else if (is_modifier_pressed(mod)) {
-                // Tecla está pressionada: roxo contínuo
-                color_rgb_t purple = color_get_rgb(COLOR_PURPLE);
-                rgb_matrix_set_color(mod->led_index, purple.r, purple.g, purple.b);
+                // Tecla está pressionada: verde contínuo
+                color_rgb_t green = color_get_rgb(COLOR_GREEN);
+                rgb_matrix_set_color(mod->led_index, green.r, green.g, green.b);
             } else {
                 // Tecla não está pressionada: roxo pulsante
                 uint8_t brightness = calculate_pulse_brightness();
@@ -128,15 +128,15 @@ static void update_modifier_leds(void) {
                 rgb_matrix_set_color(mod->led_index, purple.r, purple.g, purple.b);
             }
         } else if (mod == ralt_modifier) {
-            // RALT: verde quando FN+RALT está ativo, roxo contínuo quando pressionada, roxo pulsante quando não
+            // RALT: verde quando FN+RALT está ativo, verde contínuo quando pressionada, roxo pulsante quando não
             if (keymod_equals(fn_keymod_state, KEYMOD_FN_RALT)) {
                 // FN+RALT: verde sólido (sobrepõe comportamento padrão)
                 color_rgb_t green = color_get_rgb(COLOR_GREEN);
                 rgb_matrix_set_color(mod->led_index, green.r, green.g, green.b);
             } else if (is_modifier_pressed(mod)) {
-                // Tecla está pressionada: roxo contínuo
-                color_rgb_t purple = color_get_rgb(COLOR_PURPLE);
-                rgb_matrix_set_color(mod->led_index, purple.r, purple.g, purple.b);
+                // Tecla está pressionada: verde contínuo
+                color_rgb_t green = color_get_rgb(COLOR_GREEN);
+                rgb_matrix_set_color(mod->led_index, green.r, green.g, green.b);
             } else {
                 // Tecla não está pressionada: roxo pulsante
                 uint8_t brightness = calculate_pulse_brightness();
@@ -144,11 +144,11 @@ static void update_modifier_leds(void) {
                 rgb_matrix_set_color(mod->led_index, purple.r, purple.g, purple.b);
             }
         } else if (mod == rsft_modifier) {
-            // RSFT: roxo contínuo quando pressionada, roxo pulsante quando não
+            // RSFT: verde contínuo quando pressionada, roxo pulsante quando não
             if (is_modifier_pressed(mod)) {
-                // Tecla está pressionada: roxo contínuo
-                color_rgb_t purple = color_get_rgb(COLOR_PURPLE);
-                rgb_matrix_set_color(mod->led_index, purple.r, purple.g, purple.b);
+                // Tecla está pressionada: verde contínuo
+                color_rgb_t green = color_get_rgb(COLOR_GREEN);
+                rgb_matrix_set_color(mod->led_index, green.r, green.g, green.b);
             } else {
                 // Tecla não está pressionada: roxo pulsante
                 uint8_t brightness = calculate_pulse_brightness();
