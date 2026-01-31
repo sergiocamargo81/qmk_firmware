@@ -16,8 +16,8 @@ static bool bold_update_led_callback(bold_t* bold, void* user_data) {
     // Verifica se a tecla está pressionada usando state
     if (bold->state == BOLD_PRESSED) {
         // Tecla está pressionada: vermelho contínuo
-        color_rgb_t red = color_get_rgb(COLOR_RED);
-        rgb_matrix_set_color(bold->led_index, red.r, red.g, red.b);
+        color_rgb_t green = color_get_rgb(COLOR_GREEN);
+        rgb_matrix_set_color(bold->led_index, green.r, green.g, green.b);
     } else {
         // Tecla não está pressionada: laranja pulsante
         color_rgb_t orange = color_apply_brightness(COLOR_ORANGE_BURNT, brightness);
