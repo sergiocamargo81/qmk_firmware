@@ -131,9 +131,9 @@ void profiles_update_indicators(void) {
                 break;
             }
             case PROFILE_NONEMPTY: {
-                // Profile não vazio (mas não ativo): laranja pulsante
-                color_rgb_t orange = color_apply_brightness(COLOR_ORANGE_BURNT, brightness);
-                rgb_matrix_set_color(position->led_index, orange.r, orange.g, orange.b);
+                // Profile não vazio (mas não ativo): Azul pulsante
+                color_rgb_t blue = color_apply_brightness(COLOR_BLUE, brightness);
+                rgb_matrix_set_color(position->led_index, blue.r, blue.g, blue.b);
                 break;
             }
             default:

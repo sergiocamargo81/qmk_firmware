@@ -10,8 +10,8 @@
 // ===== Defines =====
 
 // Tempos de timeout em milissegundos
-#define LEDS_TO_STOPPING_MS  (1 * 60 * 1000)   // 5 minutos para stopping
-#define LEDS_TO_SLEEPING_MS  (2 * 60 * 1000) // 10 minutos para sleeping
+#define LEDS_TO_STOPPING_MS  (5 * 60 * 1000)   // 5 minutos para stopping
+#define LEDS_TO_SLEEPING_MS  (15 * 60 * 1000) // 10 minutos para sleeping
 
 // ===== Estados Internos =====
 
@@ -140,12 +140,8 @@ bool leds_should_show_modules(void) {
 
 // Processamento periódico (chamado em matrix_scan_user)
 void leds_matrix_scan(void) {
-    leds_state_t previous_state = g_leds_state;
-    if (!update_leds_state()) {
-        return;
-    }
-    leds_state_t new_state = g_leds_state;
-    if (previous_state == LEDS_STOPPING && new_state == LEDS_SLEEPING) {
+    update_leds_state();
+    if (g_leds_state == LEDS_SLEEPING) {
         rgb_matrix_set_flags(LED_FLAG_NONE);
         rgb_matrix_set_color_all(0, 0, 0);
         return;

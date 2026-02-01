@@ -41,11 +41,11 @@ bool numlock_process_key(base_key_t* key, bool pressed, keymod_t keymod) {
         return true;
     }
     
-    // Verifica se a key corresponde a KC_NUM
+    // Verifica se a key corresponde a KC_CALC
     numlock_t* pos = (numlock_t*)key;
-    if (pos->keycode == KC_NUM) {
-        // Envia KC_NUM ao SO (dispara toggle real)
-        tap_code(KC_NUM);
+    if (pos->keycode == KC_CALC) {
+        // Envia KC_CALC ao SO (dispara toggle real)
+        tap_code(KC_CALC);
         // Não precisa sincronizar - o estado será verificado diretamente no próximo render
         return false;  // Bloqueia propagação
     }
