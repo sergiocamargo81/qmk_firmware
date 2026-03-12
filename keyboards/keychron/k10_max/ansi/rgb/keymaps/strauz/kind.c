@@ -118,7 +118,7 @@ static unused_t g_unused_pool[UNUSED_COUNT] = {
     {.kind = KIND_UNUSED, .row = 0, .col = 12, .keycode = KC_F11, .led_index = 11, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     {.kind = KIND_UNUSED, .row = 0, .col = 13, .keycode = KC_F12, .led_index = 12, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     {.kind = KIND_UNUSED, .row = 0, .col = 14, .keycode = KC_PSCR, .led_index = 13, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_UNUSED, .row = 0, .col = 15, .keycode = 32265, .led_index = 14, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},  // KC_CTANA (custom code)
+    {.kind = KIND_UNUSED, .row = 0, .col = 15, .keycode = KC_TRANSPARENT, .led_index = 14, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     {.kind = KIND_UNUSED, .row = 0, .col = 16, .keycode = 30753, .led_index = 15, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},  // UG_NEXT (custom code)
     {.kind = KIND_UNUSED, .row = 0, .col = 17, .keycode = KC_TRANSPARENT, .led_index = 16, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     {.kind = KIND_UNUSED, .row = 0, .col = 18, .keycode = KC_TRANSPARENT, .led_index = 17, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
