@@ -28,6 +28,7 @@ SRC += custom/toggle/toggle.c
 SRC += custom/unassociated/unassociated.c
 SRC += persistence/persistence.c
 SRC += numlock/numlock.c
+SRC += mlclick/mlclick.c
 SRC += modifiers/modifiers.c
 SRC += unused/unused.c
 SRC += bold/bold.c

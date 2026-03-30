@@ -23,6 +23,7 @@ typedef enum {
     KIND_PROFILE,
     KIND_NUMLOCK,
     KIND_PERSISTENCE,
+    KIND_MLCLICK,
     KIND_CUSTOM,
     KIND_UNUSED,
     KIND_MODIFIER,
@@ -83,6 +84,20 @@ typedef struct {
     process_key_t process_key;  // Handler da posição (NULL se não tiver) (relacionado ao base)
     uint8_t state;              // Estado do módulo (uint8_t) (relacionado ao base)
 } persistence_key_t;
+
+// Para tecla left mouse click: 1 tecla (KC_MS_BTN1)
+// Campos relacionados ao base_key_t (podem ser acessados via cast para base_key_t*)
+typedef struct {
+    kind_t kind;                // READONLY Tipo da tecla (relacionado ao base)
+    uint8_t row;                // READONLY (relacionado ao base)
+    uint8_t col;                // READONLY (relacionado ao base)
+    uint16_t keycode;           // READONLY Keycode da layer BASE (relacionado ao base)
+    uint8_t led_index;          // READONLY LED index (0-127, nunca sobrescrever) (relacionado ao base)
+    keymod_t accepted_keymods;  // READONLY Flags de keymod aceitos (relacionado ao base)
+    process_key_t process_key;  // Handler da posição (NULL se não tiver) (relacionado ao base)
+    uint8_t state;              // Estado do módulo (uint8_t) (relacionado ao base)
+    uint32_t timer;             // Timer para transições de estado
+} mlclick_t;
 
 // Para teclas custom: 48 teclas (persist_index 0-47)
 // Campos relacionados ao base_key_t (podem ser acessados via cast para base_key_t*)
@@ -157,8 +172,9 @@ typedef struct {
 #define PROFILE_COUNT     10  // 10 profiles (P0-P9)
 #define NUMLOCK_COUNT     1   // 1 numlock (KC_NUM)
 #define PERSISTENCE_COUNT 1   // 1 persistence (KC_END)
+#define MLCLICK_COUNT     1   // 1 left mouse click (KC_MS_BTN1)
 #define CUSTOM_COUNT      48  // 48 teclas custom (persist_index 0-47)
-#define UNUSED_COUNT    34  // Teclas que não são profile, numlock, persistence, custom, modifier, bold nem unused_modifiers
+#define UNUSED_COUNT      33  // Teclas que não são profile, numlock, persistence, mlclick, custom, modifier, bold nem unused_modifiers
 #define MODIFIER_COUNT    4   // RSHIFT, RALT, FN, RCTRL
 #define BOLD_COUNT        3   // ESC, ENTER, BACKSPACE
 #define UNUSED_MODIFIERS_COUNT       7   // Unused modifiers: TAB, LSFT(KC_TAB), LSHIFT, LCONTROL, LWIN, LALT, RWIN
@@ -173,6 +189,9 @@ numlock_t* kind_get_numlock_key(void);
 
 // Obtém a tecla persistence (retorna diretamente do pool, sem precisar de posição)
 persistence_key_t* kind_get_persistence_key(void);
+
+// Obtém a tecla left mouse click (retorna diretamente do pool, sem precisar de posição)
+mlclick_t* kind_get_mlclick_key(void);
 
 // Cast seguro para custom_t
 custom_t* kind_get_custom(uint8_t row, uint8_t col);

@@ -40,6 +40,11 @@ static persistence_key_t g_persistence_pool[PERSISTENCE_COUNT] = {
     {.kind = KIND_PERSISTENCE, .row = 2, .col = 15, .keycode = KC_END, .led_index = 54, .accepted_keymods = KEYMOD_NONE | KEYMOD_FN_ONLY, .process_key = NULL, .state = 0},  // KC_END
 };
 
+// Pool de mlclick: 1 tecla (KC_MS_BTN1)
+static mlclick_t g_mlclick_pool[MLCLICK_COUNT] = {
+    {.kind = KIND_MLCLICK, .row = 0, .col = 15, .keycode = KC_MS_BTN1, .led_index = 14, .accepted_keymods = KEYMOD_NONE | KEYMOD_FN_ONLY, .process_key = NULL, .state = 0},  // KC_MS_BTN1
+};
+
 // Pool de customs: 48 teclas (persist_index 0-47)
 // Todos os valores preenchidos estaticamente, exceto process_key (preenchido pelos módulos)
 // Ordenado por row, depois por col (mantém persist_index original)
@@ -118,7 +123,6 @@ static unused_t g_unused_pool[UNUSED_COUNT] = {
     {.kind = KIND_UNUSED, .row = 0, .col = 12, .keycode = KC_F11, .led_index = 11, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     {.kind = KIND_UNUSED, .row = 0, .col = 13, .keycode = KC_F12, .led_index = 12, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     {.kind = KIND_UNUSED, .row = 0, .col = 14, .keycode = KC_PSCR, .led_index = 13, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
-    {.kind = KIND_UNUSED, .row = 0, .col = 15, .keycode = KC_TRANSPARENT, .led_index = 14, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     {.kind = KIND_UNUSED, .row = 0, .col = 16, .keycode = 30753, .led_index = 15, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},  // UG_NEXT (custom code)
     {.kind = KIND_UNUSED, .row = 0, .col = 17, .keycode = KC_TRANSPARENT, .led_index = 16, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
     {.kind = KIND_UNUSED, .row = 0, .col = 18, .keycode = KC_TRANSPARENT, .led_index = 17, .accepted_keymods = KEYMOD_NONE, .process_key = NULL, .state = 0},
@@ -218,6 +222,11 @@ numlock_t* kind_get_numlock_key(void) {
 // Obtém a tecla persistence (retorna diretamente do pool, sem precisar de posição)
 persistence_key_t* kind_get_persistence_key(void) {
     return &g_persistence_pool[0];
+}
+
+// Obtém a tecla left mouse click (retorna diretamente do pool, sem precisar de posição)
+mlclick_t* kind_get_mlclick_key(void) {
+    return &g_mlclick_pool[0];
 }
 
 // Cast seguro para custom_t
@@ -372,6 +381,14 @@ void kind_init_grid(void) {
             g_grid[persistence->row][persistence->col] = (base_key_t*)persistence;
         }
     }
+
+    // Preenche grid com mlclick (sobrescreve customs, profiles, numlock e persistence se houver colisão)
+    for (uint8_t i = 0; i < MLCLICK_COUNT; i++) {
+        mlclick_t* mlclick = &g_mlclick_pool[i];
+        if (in_bounds(mlclick->row, mlclick->col)) {
+            g_grid[mlclick->row][mlclick->col] = (base_key_t*)mlclick;
+        }
+    }
     
     // Preenche grid com modifiers (sobrescreve positions e customs se houver colisão)
     for (uint8_t i = 0; i < MODIFIER_COUNT; i++) {
@@ -429,6 +446,9 @@ bool kind_register_function(uint8_t row, uint8_t col, process_key_t function) {
     } else if (entry->kind == KIND_CUSTOM) {
         custom_t* custom = (custom_t*)entry;
         custom->process_key = function;
+    } else if (entry->kind == KIND_MLCLICK) {
+        mlclick_t* mlclick = (mlclick_t*)entry;
+        mlclick->process_key = function;
     } else if (entry->kind == KIND_MODIFIER) {
         modifier_t* modifier = (modifier_t*)entry;
         modifier->process_key = function;
