@@ -12,7 +12,6 @@ typedef enum {
     COLOR_YELLOW,
     COLOR_WHITE,
     COLOR_PURPLE,
-    COLOR_ORANGE_BURNT,  // Laranja queimado (mais vermelho)
     COLOR_OFF,
     COLOR_COUNT
 } color_t;
@@ -28,14 +27,13 @@ typedef struct {
 // ===== Array de Cores =====
 
 static const color_rgb_t color_rgb[COLOR_COUNT] = {
-    [COLOR_RED] = {.r = 255, .g = 0,   .b = 0},
-    [COLOR_GREEN] = {.r = 0,   .g = 255, .b = 0},
-    [COLOR_BLUE] = {.r = 0,   .g = 0,   .b = 255},
-    [COLOR_YELLOW] = {.r = 255, .g = 255, .b = 0},
-    [COLOR_WHITE] = {.r = 255, .g = 255, .b = 255},
-    [COLOR_PURPLE] = {.r = 128, .g = 0,   .b = 128},
-    [COLOR_ORANGE_BURNT] = {.r = 255, .g = 69, .b = 0},   // Laranja queimado (mais vermelho)
-    [COLOR_OFF] = {.r = 0,   .g = 0,   .b = 0},
+    [COLOR_RED] =       {.r = 255,  .g = 51,    .b = 51},
+    [COLOR_GREEN] =     {.r = 0,    .g = 255,   .b = 128},
+    [COLOR_BLUE] =      {.r = 0,    .g = 128,   .b = 255},
+    [COLOR_YELLOW] =    {.r = 255,  .g = 255,   .b = 51},
+    [COLOR_WHITE] =     {.r = 20,   .g = 20,    .b = 20},
+    [COLOR_PURPLE] =    {.r = 128,  .g = 0,     .b = 255},
+    [COLOR_OFF] =       {.r = 0,    .g = 0,     .b = 0},
 };
 
 // ===== Funções Auxiliares =====
